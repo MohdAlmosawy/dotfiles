@@ -1,26 +1,60 @@
 #!/bin/bash
 # create-odoo-workspace.sh
 
-# Check if an argument was provided
-if [ -z "$1" ]; then
+# Update argument check to allow specifying Odoo version or full config path
+if [ "$#" -lt 1 ]; then
     echo "Error: Please provide the module path"
-    echo "Usage: create-odoo-workspace.sh <path-to-module>"
-    echo "Example: create-odoo-workspace.sh ~/Desktop/live/stock_aged_report"
+    echo "Usage: create-odoo-workspace.sh <path-to-module> [odoo-version|config-path]"
+    echo "Example: create-odoo-workspace.sh ~/Desktop/live/stock_aged_report 18"
+    echo "Example: create-odoo-workspace.sh ~/Desktop/live/stock_aged_report /etc/odoo18.conf"
     exit 1
 fi
 
-# Define Odoo addon paths
-ADDON_PATHS=(
-    "/home/sayedmohamed/odoo16/addons"
-    "/home/sayedmohamed/odoo16_modules"
-    "/home/sayedmohamed/Desktop/live"
-    "/home/sayedmohamed/Desktop/odoorepos/local/16"
-)
-
-# Get current module path and ensure it exists
 MODULE_PATH=$(realpath "$1")
 if [ ! -d "$MODULE_PATH" ]; then
     echo "Error: Directory does not exist: $MODULE_PATH"
+    exit 1
+fi
+
+# Determine Odoo version or config path
+if [ "$#" -ge 2 ]; then
+    if [[ "$2" =~ ^/ ]]; then
+        CONFIG_FILE="$2"
+        if [ ! -f "$CONFIG_FILE" ]; then
+            echo "Error: Specified config file does not exist: $CONFIG_FILE"
+            exit 1
+        fi
+        ODOO_VERSION=$(basename "$CONFIG_FILE" | grep -oP '\d+')
+    else
+        ODOO_VERSION="$2"
+        CONFIG_FILE="/etc/odoo${ODOO_VERSION}.conf"
+    fi
+else
+    CONFIG_FILES=(/etc/odoo*.conf)
+    if [ ${#CONFIG_FILES[@]} -eq 1 ]; then
+        CONFIG_FILE="${CONFIG_FILES[0]}"
+        ODOO_VERSION=$(basename "$CONFIG_FILE" | grep -oP '\d+')
+    else
+        echo "Error: Multiple or no Odoo config files found. Please specify the Odoo version or config path."
+        exit 1
+    fi
+fi
+
+# Dynamically load Odoo addon paths from the config file
+if [ -f "$CONFIG_FILE" ]; then
+    addons_line=$(grep -E '^\s*addons_path\s*=' "$CONFIG_FILE")
+    if [ -n "$addons_line" ]; then
+        addon_paths_list=$(echo "$addons_line" | cut -d'=' -f2)
+        IFS=',' read -r -a ADDON_PATHS <<< "$addon_paths_list"
+        for i in "${!ADDON_PATHS[@]}"; do
+            ADDON_PATHS[$i]=$(echo "${ADDON_PATHS[$i]}" | xargs)
+        done
+    else
+        echo "Error: addons_path not found in $CONFIG_FILE" >&2
+        exit 1
+    fi
+else
+    echo "Error: config file $CONFIG_FILE not found" >&2
     exit 1
 fi
 

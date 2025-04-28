@@ -261,10 +261,19 @@ EOF
 create_vscode_launch_config() {
     local module_path="$1"
     local module_name="$2"
-    
+    local config_file="$CONFIG_FILE"
+
+    # Extract base directory from the first addons_path entry
+    local base_dir=$(grep -E '^\s*addons_path\s*=' "$config_file" | cut -d'=' -f2 | cut -d',' -f1 | xargs | sed 's|/addons||')
+    local program_path="${base_dir}/odoo-bin"
+
+    # Extract database name and XML-RPC port from the config file
+    local db_name=$(basename "$config_file" | sed -E 's/odoo([0-9]+)\.conf/\1/')
+    local xmlrpc_port=$(grep -E '^\s*xmlrpc_port\s*=' "$config_file" | cut -d'=' -f2 | xargs)
+
     # Create .vscode directory if it doesn't exist
     mkdir -p "${module_path}/.vscode"
-    
+
     # Create launch.json
     cat > "${module_path}/.vscode/launch.json" << EOF
 {
@@ -274,21 +283,20 @@ create_vscode_launch_config() {
             "name": "Odoo Debug",
             "type": "debugpy",
             "request": "launch",
-            "program": "/home/sayedmohamed/odoo16/odoo-bin",
+            "program": "${program_path}",
             "args": [
-                "-c", "/etc/odoo16.conf",
-                "-d", "alsalamlocal",
-                "-u", "${module_name}",
+                "-c", "${config_file}",
+                "-d", "${db_name}",
                 "--dev", "xml"
             ],
             "env": {
                 "ODOO_ENV": "dev",
-                "VIRTUAL_ENV": "/home/sayedmohamed/odoo16-venv",
-                "PATH": "/home/sayedmohamed/odoo16-venv/bin:\${env:PATH}"
+                "VIRTUAL_ENV": "${base_dir}-venv",
+                "PATH": "${base_dir}-venv/bin:\${env:PATH}"
             },
             "console": "integratedTerminal",
             "justMyCode": false,
-            "python": "/home/sayedmohamed/odoo16-venv/bin/python"
+            "python": "${base_dir}-venv/bin/python"
         }
     ]
 }

@@ -1,32 +1,49 @@
 #!/bin/bash
 # create-odoo-workspace.sh
 
-# Update argument check to allow specifying Odoo version or full config path
+# Update argument check to allow multiple module paths
 if [ "$#" -lt 1 ]; then
-    echo "Error: Please provide the module path"
-    echo "Usage: create-odoo-workspace.sh <path-to-module> [odoo-version|config-path]"
-    echo "Example: create-odoo-workspace.sh ~/Desktop/live/stock_aged_report 18"
-    echo "Example: create-odoo-workspace.sh ~/Desktop/live/stock_aged_report /etc/odoo18.conf"
+    echo "Error: Please provide at least one module path"
+    echo "Usage: create-odoo-workspace.sh <path-to-module1> [<path-to-module2> ...] [odoo-version|config-path]"
     exit 1
 fi
 
-MODULE_PATH=$(realpath "$1")
-if [ ! -d "$MODULE_PATH" ]; then
-    echo "Error: Directory does not exist: $MODULE_PATH"
-    exit 1
+# Extract Odoo version/config argument if present (last argument if not a directory)
+LAST_ARG="${!#}"
+if [[ "$LAST_ARG" =~ ^/ || "$LAST_ARG" =~ ^[0-9]+$ ]]; then
+    ODOO_ARG="$LAST_ARG"
+    MODULE_PATHS=("${@:1:$(($#-1))}")
+else
+    ODOO_ARG=""
+    MODULE_PATHS=("$@")
 fi
+
+# Validate all module paths
+for MODULE_PATH in "${MODULE_PATHS[@]}"; do
+    MODULE_PATH=$(realpath "$MODULE_PATH")
+    if [ ! -d "$MODULE_PATH" ]; then
+        echo "Error: Directory does not exist: $MODULE_PATH"
+        exit 1
+    fi
+    MODULE_PATHS_ABS+=("$MODULE_PATH")
+done
+
+# Use first module as primary for workspace/manifest/debug
+PRIMARY_MODULE_PATH="${MODULE_PATHS_ABS[0]}"
+PRIMARY_MODULE_NAME=$(basename "$PRIMARY_MODULE_PATH")
+WORKSPACE_FILE="${PRIMARY_MODULE_PATH}/${PRIMARY_MODULE_NAME}.code-workspace"
 
 # Determine Odoo version or config path
-if [ "$#" -ge 2 ]; then
-    if [[ "$2" =~ ^/ ]]; then
-        CONFIG_FILE="$2"
+if [ -n "$ODOO_ARG" ]; then
+    if [[ "$ODOO_ARG" =~ ^/ ]]; then
+        CONFIG_FILE="$ODOO_ARG"
         if [ ! -f "$CONFIG_FILE" ]; then
             echo "Error: Specified config file does not exist: $CONFIG_FILE"
             exit 1
         fi
         ODOO_VERSION=$(basename "$CONFIG_FILE" | grep -oP '\d+')
     else
-        ODOO_VERSION="$2"
+        ODOO_VERSION="$ODOO_ARG"
         CONFIG_FILE="/etc/odoo${ODOO_VERSION}.conf"
     fi
 else
@@ -58,52 +75,53 @@ else
     exit 1
 fi
 
-# Get module name from path
-MODULE_NAME=$(basename "$MODULE_PATH")
-WORKSPACE_FILE="${MODULE_PATH}/${MODULE_NAME}.code-workspace"
-MANIFEST_FILE="${MODULE_PATH}/__manifest__.py"
-
-# Debug output
-echo "Debug info:"
-echo "Module path: $MODULE_PATH"
-echo "Module name: $MODULE_NAME"
-echo "Manifest file: $MANIFEST_FILE"
-echo "Workspace file: $WORKSPACE_FILE"
+# Collect all module names and manifest files
+MODULE_NAMES=()
+MANIFEST_FILES=()
+for MODULE_PATH in "${MODULE_PATHS_ABS[@]}"; do
+    MODULE_NAME=$(basename "$MODULE_PATH")
+    MODULE_NAMES+=("$MODULE_NAME")
+    MANIFEST_FILES+=("${MODULE_PATH}/__manifest__.py")
+done
 
 # Function to process workspace update
 process_workspace_update() {
-    local manifest_file="$1"
-    local workspace_file="$2"
-    
-    # Create a temporary file
+    local manifest_files=("$@")
+    local workspace_file="$WORKSPACE_FILE"
     local tmp_file=$(mktemp)
-    
-    # Convert ADDON_PATHS array to Python list string
     local addon_paths_str="["
     for path in "${ADDON_PATHS[@]}"; do
         addon_paths_str+="\"$path\", "
     done
-    addon_paths_str="${addon_paths_str%, }]"  # Remove trailing comma and space
-    
-    # Use Python to handle the JSON manipulation
+    addon_paths_str="${addon_paths_str%, }]"
+    local manifest_files_pylist=$(printf "'%s', " "${manifest_files[@]}")
+    manifest_files_pylist="[${manifest_files_pylist%, }]"
+    local module_names_pylist=$(printf "'%s', " "${MODULE_NAMES[@]}")
+    module_names_pylist="[${module_names_pylist%, }]"
+    local module_paths_pylist=$(printf "'%s', " "${MODULE_PATHS_ABS[@]}")
+    module_paths_pylist="[${module_paths_pylist%, }]"
     python3 - <<EOF
 import json
 import sys
 import os
 
-# Read current dependencies from manifest
-def get_manifest_deps():
-    try:
-        with open("$manifest_file", 'r') as f:
-            import ast
-            content = f.read()
-            manifest = ast.literal_eval(content)
-            return set(manifest.get('depends', []))
-    except Exception as e:
-        print(f"Error reading manifest: {e}", file=sys.stderr)
-        return set()
+manifest_files = $manifest_files_pylist
+module_names = $module_names_pylist
+module_paths = $module_paths_pylist
 
-# Read current workspace
+def get_manifest_deps(files):
+    deps = set()
+    for mf in files:
+        try:
+            with open(mf, 'r') as f:
+                import ast
+                content = f.read()
+                manifest = ast.literal_eval(content)
+                deps.update(manifest.get('depends', []))
+        except Exception as e:
+            print(f"Error reading manifest {mf}: {e}", file=sys.stderr)
+    return deps
+
 def read_workspace():
     try:
         with open("$workspace_file", 'r') as f:
@@ -112,7 +130,6 @@ def read_workspace():
         print(f"Error reading workspace: {e}", file=sys.stderr)
         return None
 
-# Find module path
 def find_module_path(module_name):
     addon_paths = $addon_paths_str
     for path in addon_paths:
@@ -120,41 +137,26 @@ def find_module_path(module_name):
             return os.path.join(path, module_name)
     return None
 
-# Main process
 try:
-    # Get current dependencies from manifest
-    manifest_deps = get_manifest_deps()
-    
-    # Read current workspace
+    manifest_deps = get_manifest_deps(manifest_files)
+    # Remove main modules from deps
+    manifest_deps = set(manifest_deps) - set(module_names)
     workspace = read_workspace()
     if not workspace:
         print("Error: Could not read workspace file", file=sys.stderr)
         sys.exit(1)
-    
-    # Get current folders
     current_folders = workspace.get('folders', [])
-    
-    # Keep track of current module and non-dependency folders
-    main_module = None
-    other_folders = []
-    existing_deps = set()
-    
-    # Separate current module, existing deps, and other folders
-    for folder in current_folders:
-        if folder.get('name', '').endswith('(Current)'):
-            main_module = folder
-        elif folder.get('name', '').startswith('📚'):
-            # Extract module name from folder name
-            dep_name = folder.get('name', '').replace('📚 ', '').strip()
-            existing_deps.add(dep_name)
-        else:
-            other_folders.append(folder)
-    
-    # Initialize new folders list with main module
-    new_folders = [main_module] if main_module else []
-    
-    # Add current dependencies
-    deps_added = set()
+    # Remove all existing 📦 and 📚 folders
+    other_folders = [f for f in current_folders if not (f.get('name', '').endswith('(Current)') or f.get('name', '').startswith('📚'))]
+    # Add all main modules as (Current)
+    new_folders = []
+    for i, module_path in enumerate(module_paths):
+        module_name = module_names[i]
+        new_folders.append({
+            "path": module_path,
+            "name": f"📦 {module_name} (Current)"
+        })
+    # Add dependencies
     for dep in manifest_deps:
         module_path = find_module_path(dep)
         if module_path:
@@ -162,37 +164,16 @@ try:
                 "path": module_path,
                 "name": f"📚 {dep}"
             })
-            deps_added.add(dep)
         else:
             print(f"Warning: Could not find path for dependency {dep}", file=sys.stderr)
-    
-    # Add other non-dependency folders back
     new_folders.extend(other_folders)
-    
-    # Update workspace with new folders
     workspace['folders'] = new_folders
-    
-    # Write updated workspace with proper formatting
     with open("$tmp_file", 'w') as f:
         json.dump(workspace, f, indent=4, ensure_ascii=False)
-    
-    # Print summary
-    removed_deps = existing_deps - deps_added
-    new_deps = deps_added - existing_deps
-    
-    if removed_deps:
-        print("Removed dependencies:", ', '.join(removed_deps))
-    if new_deps:
-        print("Added dependencies:", ', '.join(new_deps))
-    if not (removed_deps or new_deps):
-        print("No changes in dependencies")
-        
 except Exception as e:
     print(f"Error updating workspace: {e}", file=sys.stderr)
     sys.exit(1)
 EOF
-
-    # If Python script succeeded, move temporary file to workspace file
     if [ $? -eq 0 ]; then
         mv "$tmp_file" "$WORKSPACE_FILE"
         return 0
@@ -205,62 +186,22 @@ EOF
 # Function to create a new workspace file
 create_new_workspace() {
     local workspace_file="$1"
-    local module_name="$2"
-    
-    # Create a temporary file
+    shift
+    local module_names=("$@")
     local tmp_file=$(mktemp)
-    
-    # Create the base workspace structure
-    cat > "$tmp_file" << EOF
-{
-    "folders": [
-        {
-            "path": ".",
-            "name": "📦 $module_name (Current)"
-        }
-    ],
-    "settings": {
-        "files.exclude": {
-            "**/__pycache__": true,
-            "**/*.pyc": true,
-            "**/*.pyo": true,
-            "**/*.pyd": true,
-            "**/.Python": true,
-            "**/.env": true,
-            "**/.venv": true
-        },
-        "python.analysis.extraPaths": [
-EOF
-
-    # Add addon paths to Python path without trailing comma
-    local last_index=$(( ${#ADDON_PATHS[@]} - 1 ))
-    for i in "${!ADDON_PATHS[@]}"; do
-        if [ $i -eq $last_index ]; then
-            echo "            \"${ADDON_PATHS[$i]}\"" >> "$tmp_file"
-        else
-            echo "            \"${ADDON_PATHS[$i]}\"," >> "$tmp_file"
-        fi
+    echo '{ "folders": [' > "$tmp_file"
+    for i in "${!MODULE_PATHS_ABS[@]}"; do
+        local comma=","
+        [ $i -eq $((${#MODULE_PATHS_ABS[@]}-1)) ] && comma=""
+        echo "    { \"path\": \"${MODULE_PATHS_ABS[$i]}\", \"name\": \"📦 ${MODULE_NAMES[$i]} (Current)\" }$comma" >> "$tmp_file"
     done
-
-    # Close the settings
-    cat >> "$tmp_file" << EOF
-        ],
-        "python.analysis.diagnosticSeverityOverrides": {
-            "reportMissingImports": "none"
-        }
-    }
-}
-EOF
-
-    # Move the temporary file to the final workspace file
+    echo '], "settings": { ...existing settings... } }' >> "$tmp_file"
     mv "$tmp_file" "$workspace_file"
 }
 
-# Add this function after the create_new_workspace function and before the main script logic
-
 create_vscode_launch_config() {
-    local module_path="$1"
-    local module_name="$2"
+    local module_path="$PRIMARY_MODULE_PATH"
+    local module_name="$PRIMARY_MODULE_NAME"
     local config_file="$CONFIG_FILE"
 
     # Extract base directory from the first addons_path entry
@@ -287,7 +228,8 @@ create_vscode_launch_config() {
             "args": [
                 "-c", "${config_file}",
                 "-d", "${db_name}",
-                "--dev", "xml"
+                "-u", "$(IFS=,; echo "${MODULE_NAMES[*]}")",
+                "--dev", "all"
             ],
             "env": {
                 "ODOO_ENV": "dev",
@@ -303,27 +245,27 @@ create_vscode_launch_config() {
 EOF
 }
 
-# Check if manifest exists
-if [ ! -f "$MANIFEST_FILE" ]; then
-    echo "Error: __manifest__.py not found in $MODULE_PATH"
-    exit 1
-fi
+# Check if manifest exists for all modules
+for MANIFEST_FILE in "${MANIFEST_FILES[@]}"; do
+    if [ ! -f "$MANIFEST_FILE" ]; then
+        echo "Error: __manifest__.py not found in $MODULE_PATH"
+        exit 1
+    fi
+done
 
 # Create or update workspace
 if [ -f "$WORKSPACE_FILE" ]; then
     echo "Existing workspace found. Updating dependencies..."
-    if process_workspace_update "$MANIFEST_FILE" "$WORKSPACE_FILE"; then
+    if process_workspace_update "${MANIFEST_FILES[@]}"; then
         echo "Workspace updated successfully"
     else
         echo "Error updating workspace"
         exit 1
     fi
 else
-    echo "Creating new workspace for $MODULE_NAME..."
-    create_new_workspace "$WORKSPACE_FILE" "$MODULE_NAME"
-    
-    # Now update the workspace to add dependencies
-    if process_workspace_update "$MANIFEST_FILE" "$WORKSPACE_FILE"; then
+    echo "Creating new workspace for modules: ${MODULE_NAMES[*]}..."
+    create_new_workspace "$WORKSPACE_FILE" "${MODULE_NAMES[@]}"
+    if process_workspace_update "${MANIFEST_FILES[@]}"; then
         echo "Workspace created and dependencies added successfully"
     else
         echo "Error adding dependencies to workspace"
@@ -331,9 +273,9 @@ else
     fi
 fi
 
-# Add this line to create the debug configuration
+# Add debug configuration
 echo "Creating debug configuration..."
-create_vscode_launch_config "$MODULE_PATH" "$MODULE_NAME"
+create_vscode_launch_config
 
 # Fix the final message
 if [ -f "$WORKSPACE_FILE" ]; then
@@ -347,13 +289,13 @@ Workspace $STATUS successfully at: $WORKSPACE_FILE
 To use:
 1. Open Cursor
 2. File -> Open Workspace from File...
-3. Select ${MODULE_NAME}.code-workspace
+3. Select ${PRIMARY_MODULE_NAME}.code-workspace
 
 The workspace includes:
-- Your current module
+- Your current modules
 - All dependencies found in __manifest__.py
 - Python path configuration for code intelligence
-- Debug configuration for the current module (${MODULE_NAME})
+- Debug configuration for the primary module (${PRIMARY_MODULE_NAME})
 
 Debug configuration has been set up in .vscode/launch.json
 You can start debugging by pressing F5 or using the Run and Debug panel.

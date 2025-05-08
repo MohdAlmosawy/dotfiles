@@ -215,6 +215,37 @@ create_vscode_launch_config() {
     # Create .vscode directory if it doesn't exist
     mkdir -p "${module_path}/.vscode"
 
+    # Build log-handler argument using Python for robust parsing
+    local main_modules_pylist=$(printf "%s\\n" "${MODULE_NAMES[@]}" | python3 -c "import sys; print(list(sys.stdin.read().splitlines()))")
+    local manifest_files_pylist=$(printf "%s\\n" "${MANIFEST_FILES[@]}" | python3 -c "import sys; print(list(sys.stdin.read().splitlines()))")
+    local log_handler_arg=$(python3 - <<EOF
+import ast
+import sys
+import os
+main_modules = $main_modules_pylist
+manifest_files = $manifest_files_pylist
+
+def get_deps(files, main_modules):
+    deps = set()
+    for mf in files:
+        try:
+            with open(mf, 'r') as f:
+                manifest = ast.literal_eval(f.read())
+                for dep in manifest.get('depends', []):
+                    if dep not in main_modules:
+                        deps.add(dep)
+        except Exception as e:
+            print(f"Error reading {mf}: {e}", file=sys.stderr)
+    return deps
+
+deps = get_deps(manifest_files, main_modules)
+parts = [f"odoo.addons.{m}:DEBUG" for m in main_modules]
+parts += [f"odoo.addons.{d}:INFO" for d in sorted(deps)]
+parts += ["odoo.service.server:DEBUG", "odoo:INFO"]
+print(f"--log-handler={','.join(parts)}")
+EOF
+)
+
     # Create launch.json
     cat > "${module_path}/.vscode/launch.json" << EOF
 {
@@ -229,7 +260,8 @@ create_vscode_launch_config() {
                 "-c", "${config_file}",
                 "-d", "${db_name}",
                 "-u", "$(IFS=,; echo "${MODULE_NAMES[*]}")",
-                "--dev", "all"
+                "--dev", "all",
+                "${log_handler_arg}"
             ],
             "env": {
                 "ODOO_ENV": "dev",

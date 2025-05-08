@@ -1,0 +1,117 @@
+# Global .gitignore for all repositories
+# See https://help.github.com/articles/ignoring-files
+
+# Compiled source files
+#######################
+*.class
+*.com
+*.dll
+*.exe
+*.o
+*.so
+
+# Package files
+###############
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs and databases
+####################
+*.log
+logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dev-debug.log
+/db/*.sqlite3
+/log/*
+/public/system/*
+/tmp/*
+
+# OS generated files
+####################
+._*
+.DS_Store
+.DS_Store?
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing files
+###############
+.rspec
+capybara-*.html
+coverage
+pickle-email-*.html
+rerun.txt
+spec/reports
+spec/tmp
+test/tmp
+test/version_tmp
+
+# Dependency directories
+########################
+node_modules/
+vendor/bundle
+/.bundle
+
+# Ruby/Rails specific
+#####################
+**.orig
+*.rbc
+*.sassc
+.project
+.rvmrc
+.sass-cache
+.bundle
+.config
+.yardoc
+_yardoc
+doc/
+InstalledFiles
+lib/bundler/man
+pkg
+rdoc
+tmp
+
+# For a library or gem, you might want to ignore these files since the code is
+# intended to run in multiple environments; otherwise, check them in:
+# Gemfile.lock
+# .ruby-version
+# .ruby-gemset
+
+# CTags
+#######
+tags
+
+# Environment files
+###################
+.env
+
+# Python
+########
+*.pyc
+__pycache__/
+
+# Editor directories and files
+#############################
+.idea/
+.vscode/
+*.code-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Task files
+############
+tasks.json
+tasks/

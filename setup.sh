@@ -20,6 +20,9 @@ link() {
 echo "Linking global gitignore…"
 link "$DOTFILES_DIR/.gitignore_global" "$HOME/.gitignore_global"
 
+echo "Linking global Git config…"
+link "$DOTFILES_DIR/.gitconfig" "$HOME/.gitconfig"
+
 # 4. Install bin/ scripts
 echo "Installing bin/ scripts…"
 mkdir -p "$HOME/bin"

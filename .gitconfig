@@ -1,0 +1,10 @@
+[user]
+  name = sebrahim
+  email = mohd.s.aqeel@gmail.com
+
+[core]
+  excludesFile = ~/.gitignore_global
+  editor = nano
+
+[color]
+  ui = auto

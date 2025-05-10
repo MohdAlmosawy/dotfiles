@@ -115,3 +115,26 @@ __pycache__/
 ############
 tasks.json
 tasks/
+
+# Task Master AI Agent related ignores
+######################################
+
+# Ignore environment example files globally
+*.env.example
+
+# Ignore any .cursor/ directory globally (e.g., payment_subsequence/.cursor/)
+**/.cursor/
+
+# Ignore any .windsurfrules file globally (e.g., payment_subsequence/.windsurfrules)
+**/.windsurfrules
+
+# Ignore Node dependencies & lock files in any subdirectory
+**/node_modules/
+**/package.json
+**/package-lock.json
+
+# Ignore any scripts folder globally
+**/scripts/
+
+# (Optionally) Ignore README if you don’t want it tracked globally
+# README.md

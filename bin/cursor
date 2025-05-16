@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Allow override if someone really wants a different AppImage path:
+APPIMAGE="${CURSOR_APPIMAGE:-$HOME/.local/bin/Cursor.AppImage}"
+
+if [[ ! -f "$APPIMAGE" ]]; then
+  echo "Error: Cursor AppImage not found at $APPIMAGE" >&2
+  echo "  • You can export CURSOR_APPIMAGE to point elsewhere, or" >&2
+  echo "  • re-run setup.sh with CURSOR_APPIMAGE_URL set to install it." >&2
+  exit 1
+fi
+
+# Launch detached (no sandbox) and forward any args (e.g. a folder path)
+nohup "$APPIMAGE" --no-sandbox "$@" >/dev/null 2>&1 &

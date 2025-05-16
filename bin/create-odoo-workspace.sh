@@ -169,7 +169,7 @@ try:
         sys.exit(1)
     current_folders = workspace.get('folders', [])
     # Remove all existing 📦 and 📚 folders
-    other_folders = [f for f in current_folders if not (f.get('name', '').endswith('(Current)') or f.get('name', '').startswith('📚') or f.get('name', '').startswith('🔰') or f.get('name', '').startswith('💎') or f.get('name', '').startswith('🏢'))]
+    other_folders = [f for f in current_folders if not (f.get('name', '').endswith('(Current)') or f.get('name', '').startswith('📚') or f.get('name', '').startswith('⚙️') or f.get('name', '').startswith('🏢') or f.get('name', '').startswith('➕'))]
     # Add all main modules as (Current)
     new_folders = []
     for i, module_path in enumerate(module_paths):

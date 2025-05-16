@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 # create-odoo-workspace.sh
 
 # Update argument check to allow multiple module paths
@@ -84,6 +85,29 @@ for MODULE_PATH in "${MODULE_PATHS_ABS[@]}"; do
     MANIFEST_FILES+=("${MODULE_PATH}/__manifest__.py")
 done
 
+# Helper: robustly extract Odoo source dir from config file
+get_odoo_source_dir() {
+    local config_file="$1"
+    local odoo_source_dir=""
+    # Extract all paths, trim whitespace, and find the first ending with /addons
+    IFS=',' read -ra paths <<< "$(awk -F= '/^[[:space:]]*addons_path[[:space:]]*=/ {print $2}' "$config_file")"
+    for p in "${paths[@]}"; do
+        p="${p#"${p%%[![:space:]]*}"}"  # trim leading
+        p="${p%"${p##*[![:space:]]}"}"  # trim trailing
+        if [[ "$p" == */addons ]]; then
+            odoo_source_dir="${p%/addons}"
+            break
+        fi
+    done
+    if [ -z "$odoo_source_dir" ]; then
+        echo "DEBUG: addons_path line: '$(awk -F= '/^[[:space:]]*addons_path[[:space:]]*=/ {print $2}' "$config_file")'" >&2
+        echo "DEBUG: parsed paths: ${paths[*]}" >&2
+        echo "Error: Could not determine Odoo source directory from config file $config_file (no path ending with /addons in addons_path)" >&2
+        exit 1
+    fi
+    realpath "$odoo_source_dir"
+}
+
 # Function to process workspace update
 process_workspace_update() {
     local manifest_files=("$@")
@@ -101,8 +125,9 @@ process_workspace_update() {
     local module_paths_pylist=$(printf "'%s', " "${MODULE_PATHS_ABS[@]}")
     module_paths_pylist="[${module_paths_pylist%, }]"
     
-    # Get Odoo source directory
-    local odoo_source_dir="/home/sayedmohd/odoo18/odoo"
+    # Get Odoo source directory from config file dynamically
+    local odoo_source_dir
+    odoo_source_dir=$(get_odoo_source_dir "$CONFIG_FILE") || exit 1
     local odoo_addons_path="${odoo_source_dir}/addons"
     echo "Debug: Odoo addons path: $odoo_addons_path" >&2
     
@@ -148,8 +173,20 @@ def find_module_path(module_name):
         print(f"Debug: Checking path: {full_path}", file=sys.stderr)
         if os.path.isdir(full_path):
             return full_path, path
-    
-    # If not found, check in Odoo source directory
+    # Special handling for Odoo core modules (e.g. 'base')
+    # Try odoo/odoo/addons/module_name
+    odoo_core_candidates = [
+        os.path.expanduser(os.path.join('~', 'odoo', 'odoo', 'addons', module_name)),
+        os.path.expanduser(os.path.join('~', 'odoo18', 'odoo', 'addons', module_name)),
+        os.path.expanduser(os.path.join('~', 'odoo16', 'odoo', 'addons', module_name)),
+        os.path.expanduser(os.path.join('~', 'odoo15', 'odoo', 'addons', module_name)),
+        os.path.expanduser(os.path.join('~', 'odoo14', 'odoo', 'addons', module_name)),
+    ]
+    for candidate in odoo_core_candidates:
+        print(f"Debug: Checking Odoo core candidate: {candidate}", file=sys.stderr)
+        if os.path.isdir(candidate):
+            return candidate, os.path.dirname(candidate)
+    # If not found, check in odoo_addons_path (for legacy setups)
     full_path = os.path.join(odoo_addons_path, module_name)
     print(f"Debug: Checking Odoo path: {full_path}", file=sys.stderr)
     if os.path.isdir(full_path):
@@ -198,7 +235,6 @@ try:
             else:
                 # Custom/third-party module
                 icon = "➕"
-            
             new_folders.append({
                 "path": module_path,
                 "name": f"{icon} {dep}"
@@ -251,8 +287,9 @@ create_vscode_launch_config() {
     local module_name="$PRIMARY_MODULE_NAME"
     local config_file="$CONFIG_FILE"
 
-    # Extract base directory from the first addons_path entry
-    local base_dir=$(grep -E '^\s*addons_path\s*=' "$config_file" | cut -d'=' -f2 | cut -d',' -f1 | xargs | sed 's|/addons||')
+    # Use robust helper to get base directory
+    local base_dir
+    base_dir=$(get_odoo_source_dir "$config_file")
     local program_path="${base_dir}/odoo-bin"
 
     # Extract database name and XML-RPC port from the config file
@@ -282,7 +319,7 @@ create_vscode_launch_config() {
             "env": {
                 "ODOO_ENV": "dev",
                 "VIRTUAL_ENV": "${base_dir}-venv",
-                "PATH": "${base_dir}-venv/bin:\${env:PATH}"
+                "PATH": "${base_dir}-venv/bin:${env:PATH}"
             },
             "console": "integratedTerminal",
             "justMyCode": false,
@@ -291,6 +328,168 @@ create_vscode_launch_config() {
     ]
 }
 EOF
+}
+
+create_vscode_settings() {
+    local module_path="$PRIMARY_MODULE_PATH"
+    local config_file="$CONFIG_FILE"
+    local odoo_source_dir
+    odoo_source_dir=$(get_odoo_source_dir "$config_file")
+    local settings_dir="$module_path/.vscode"
+    local settings_file="$settings_dir/settings.json"
+    mkdir -p "$settings_dir"
+
+    # Compose all extraPaths: odoo_source_dir, odoo_source_dir/odoo, odoo_source_dir/odoo/addons, all ADDON_PATHS
+    local extra_paths_json
+    extra_paths_json=$(jq -n --arg odoo "$odoo_source_dir" \
+        --arg odoo_sub "$odoo_source_dir/odoo" \
+        --arg odoo_addons "$odoo_source_dir/odoo/addons" \
+        --argjson addons "$(printf '%s\n' "${ADDON_PATHS[@]}" | jq -R . | jq -s .)" \
+        '$addons | [$odoo, $odoo_sub, $odoo_addons] + .')
+
+    # Remove Odoo.configurations and Odoo.selectedConfiguration if present
+    if [ -f "$settings_file" ]; then
+        tmpfile=$(mktemp)
+        jq 'del(."Odoo.configurations", ."Odoo.selectedConfiguration") | (."python.analysis.extraPaths" // []) as $old | ."python.analysis.extraPaths" = ($old + $extraPaths | unique)' \
+            --argjson extraPaths "$extra_paths_json" \
+            "$settings_file" > "$tmpfile" && mv "$tmpfile" "$settings_file"
+    else
+        cat > "$settings_file" << EOF
+{
+    "python.analysis.extraPaths": $(echo "$extra_paths_json")
+}
+EOF
+    fi
+}
+
+# Also set python.pythonPath in workspace .vscode/settings.json for Odoo LS compatibility
+create_python_path_setting() {
+    local module_path="$PRIMARY_MODULE_PATH"
+    local settings_dir="$module_path/.vscode"
+    local settings_file="$settings_dir/settings.json"
+    mkdir -p "$settings_dir"
+    if [ -f "$settings_file" ]; then
+        tmpfile=$(mktemp)
+        jq --arg pythonPath "/home/sayedmohd/odoo${ODOO_VERSION}-venv/bin/python" '. + {"python.pythonPath": $pythonPath}' "$settings_file" > "$tmpfile" && mv "$tmpfile" "$settings_file"
+    else
+        cat > "$settings_file" << EOF
+{
+    "python.pythonPath": "/home/sayedmohd/odoo${ODOO_VERSION}-venv/bin/python"
+}
+EOF
+    fi
+}
+
+# Remove Odoo.configurations from workspace settings (no-op)
+create_odoo_ls_settings() {
+    local module_path="$PRIMARY_MODULE_PATH"
+    local settings_dir="$module_path/.vscode"
+    local settings_file="$settings_dir/settings.json"
+    local selected_config="Odoo $ODOO_VERSION"
+
+    # Remove Odoo.configurations from workspace/folder settings if present
+    if [[ "$WORKSPACE_FILE" == *.code-workspace ]]; then
+        tmpfile=$(mktemp)
+        if [ ! -f "$WORKSPACE_FILE" ]; then
+            echo '{"folders": [], "settings": {"Odoo.selectedConfiguration": "'$selected_config'"}}' > "$WORKSPACE_FILE"
+        else
+            jq 'if .settings then .settings |= del(."Odoo.configurations") else . end' "$WORKSPACE_FILE" > "$tmpfile" && mv "$tmpfile" "$WORKSPACE_FILE"
+            tmpfile2=$(mktemp)
+            jq --arg selected "$selected_config" '.settings = (.settings // {}) + {"Odoo.selectedConfiguration": $selected}' "$WORKSPACE_FILE" > "$tmpfile2" && mv "$tmpfile2" "$WORKSPACE_FILE"
+        fi
+    else
+        mkdir -p "$settings_dir"
+        if [ -f "$settings_file" ]; then
+            tmpfile=$(mktemp)
+            jq 'del(."Odoo.configurations")' "$settings_file" > "$tmpfile" && mv "$tmpfile" "$settings_file"
+            tmpfile2=$(mktemp)
+            jq --arg selected "$selected_config" '. + {"Odoo.selectedConfiguration": $selected}' "$settings_file" > "$tmpfile2" && mv "$tmpfile2" "$settings_file"
+        else
+            cat > "$settings_file" << EOF
+{
+    "Odoo.selectedConfiguration": "$selected_config"
+}
+EOF
+        fi
+    fi
+}
+
+# Patch user-level settings for Odoo Language Server
+patch_odoo_ls_user_settings() {
+    local user_settings_files=(
+        "$HOME/.config/Code/User/settings.json"
+        "$HOME/.config/Cursor/User/settings.json"
+    )
+    local odoo_source_dir
+    odoo_source_dir=$(get_odoo_source_dir "$CONFIG_FILE")
+    python_path="${HOME}/odoo${ODOO_VERSION}-venv/bin/python"
+    local config_name="Odoo $ODOO_VERSION"
+    for user_settings_file in "${user_settings_files[@]}"; do
+        # If file does not exist, create it as an empty JSON object
+        if [ ! -f "$user_settings_file" ]; then
+            mkdir -p "$(dirname "$user_settings_file")"
+            echo '{}' > "$user_settings_file"
+        fi
+        if [ -f "$user_settings_file" ]; then
+            # Find if a config with the same name exists, and get its numeric key if so
+            existing_id=$(jq -r --arg name "$config_name" '(."Odoo.configurations" // {}) | to_entries[] | select(.value.name == $name) | .key' "$user_settings_file" | head -n1)
+            # Robustly build addons_json (always valid JSON)
+            if [ ${#ADDON_PATHS[@]} -eq 0 ]; then
+                addons_json='[]'
+            else
+                addons_json=$(printf '%s\n' "${ADDON_PATHS[@]}" | jq -R . | jq -s .)
+            fi
+            if [[ -n "$existing_id" && "$existing_id" =~ ^[0-9]+$ ]]; then
+                # Update the existing config
+                echo "DEBUG: addons_json: $addons_json" >&2
+                odoo_config_json=$(jq -n \
+                    --arg id "$existing_id" \
+                    --arg name "$config_name" \
+                    --arg rawOdooPath "$odoo_source_dir" \
+                    --arg odooPath "$odoo_source_dir" \
+                    --argjson addons "$addons_json" \
+                    --arg pythonPath "$python_path" \
+                    --arg odooEnv "$odoo_source_dir" \
+                    '{id: ($id|tonumber), name: $name, rawOdooPath: $rawOdooPath, odooPath: $odooPath, addons: $addons, pythonPath: $pythonPath, env: {PYTHONPATH: $odooEnv}}' \
+                    | jq -c .)
+                echo "DEBUG: odoo_config_json: $odoo_config_json" >&2
+                # Validate JSON
+                echo "$odoo_config_json" | jq . >&2 || { echo "ERROR: odoo_config_json is not valid JSON" >&2; exit 1; }
+                echo "DEBUG: user_settings_file content before jq:" >&2
+                cat "$user_settings_file" >&2
+                cat "$user_settings_file" | jq . >/dev/null || { echo "ERROR: $user_settings_file is not valid JSON!" >&2; cat "$user_settings_file" >&2; exit 1; }
+                tmpfile=$(mktemp)
+                jq --arg id "$existing_id" --argjson new_config "$odoo_config_json" --arg pythonPath "$python_path" '
+                    .["Odoo.configurations"][$id] = $new_config
+                    | .["Odoo.selectedConfiguration"] = $id
+                    | .["pythonPath"] = $pythonPath
+                ' "$user_settings_file" > "$tmpfile" && mv "$tmpfile" "$user_settings_file"
+            else
+                # Find next available numeric key for Odoo.configurations, starting from 0 if none exist
+                next_id=$(jq -r '(
+                    (."Odoo.configurations" // {}) | keys | map(select(test("^\\d+$"))) | map(tonumber) | (max // -1) + 1
+                )' "$user_settings_file")
+                odoo_config_json=$(jq -n \
+                    --argjson id "$next_id" \
+                    --arg name "$config_name" \
+                    --arg rawOdooPath "$odoo_source_dir" \
+                    --arg odooPath "$odoo_source_dir" \
+                    --argjson addons "$addons_json" \
+                    --arg pythonPath "$python_path" \
+                    --arg odooEnv "$odoo_source_dir" \
+                    '{id: $id, name: $name, rawOdooPath: $rawOdooPath, odooPath: $odooPath, addons: $addons, pythonPath: $pythonPath, env: {PYTHONPATH: $odooEnv}}' \
+                    | jq -c .)
+                echo "DEBUG: odoo_config_json: $odoo_config_json" >&2
+                echo "$odoo_config_json" | jq . >&2 || { echo "ERROR: odoo_config_json is not valid JSON" >&2; exit 1; }
+                tmpfile=$(mktemp)
+                jq --argjson id "$next_id" --argjson new_config "$odoo_config_json" --arg pythonPath "$python_path" '
+                    .["Odoo.configurations"] = ((.["Odoo.configurations"] // {}) + {($id|tostring): $new_config})
+                    | .["Odoo.selectedConfiguration"] = ($id|tostring)
+                    | .["pythonPath"] = $pythonPath
+                ' "$user_settings_file" > "$tmpfile" && mv "$tmpfile" "$user_settings_file"
+            fi
+        fi
+    done
 }
 
 # Check if manifest exists for all modules
@@ -324,6 +523,18 @@ fi
 # Add debug configuration
 echo "Creating debug configuration..."
 create_vscode_launch_config
+
+# Add python.analysis.extraPaths for Odoo import resolution
+echo "Configuring python.analysis.extraPaths for Odoo..."
+create_vscode_settings
+# Add python.pythonPath for Odoo LS compatibility
+echo "Configuring python.pythonPath for Odoo Language Server compatibility..."
+create_python_path_setting
+# Add Odoo Language Server config
+echo "Configuring Odoo Language Server extension..."
+create_odoo_ls_settings
+# Patch user settings for Odoo Language Server
+patch_odoo_ls_user_settings
 
 # Fix the final message
 if [ -f "$WORKSPACE_FILE" ]; then

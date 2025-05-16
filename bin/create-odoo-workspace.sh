@@ -100,6 +100,12 @@ process_workspace_update() {
     module_names_pylist="[${module_names_pylist%, }]"
     local module_paths_pylist=$(printf "'%s', " "${MODULE_PATHS_ABS[@]}")
     module_paths_pylist="[${module_paths_pylist%, }]"
+    
+    # Get Odoo source directory
+    local odoo_source_dir="/home/sayedmohd/odoo18/odoo"
+    local odoo_addons_path="${odoo_source_dir}/addons"
+    echo "Debug: Odoo addons path: $odoo_addons_path" >&2
+    
     python3 - <<EOF
 import json
 import sys
@@ -108,6 +114,9 @@ import os
 manifest_files = $manifest_files_pylist
 module_names = $module_names_pylist
 module_paths = $module_paths_pylist
+odoo_addons_path = "$odoo_addons_path"
+
+print(f"Debug: Python received odoo_addons_path: {odoo_addons_path}", file=sys.stderr)
 
 def get_manifest_deps(files):
     deps = set()
@@ -132,22 +141,35 @@ def read_workspace():
 
 def find_module_path(module_name):
     addon_paths = $addon_paths_str
+    print(f"Debug: Checking addon paths: {addon_paths}", file=sys.stderr)
+    # First check in addon paths
     for path in addon_paths:
-        if os.path.isdir(os.path.join(path, module_name)):
-            return os.path.join(path, module_name)
-    return None
+        full_path = os.path.join(path, module_name)
+        print(f"Debug: Checking path: {full_path}", file=sys.stderr)
+        if os.path.isdir(full_path):
+            return full_path, path
+    
+    # If not found, check in Odoo source directory
+    full_path = os.path.join(odoo_addons_path, module_name)
+    print(f"Debug: Checking Odoo path: {full_path}", file=sys.stderr)
+    if os.path.isdir(full_path):
+        return full_path, odoo_addons_path
+    
+    return None, None
 
 try:
     manifest_deps = get_manifest_deps(manifest_files)
+    print(f"Found dependencies: {manifest_deps}", file=sys.stderr)
     # Remove main modules from deps
     manifest_deps = set(manifest_deps) - set(module_names)
+    print(f"Dependencies after removing main modules: {manifest_deps}", file=sys.stderr)
     workspace = read_workspace()
     if not workspace:
         print("Error: Could not read workspace file", file=sys.stderr)
         sys.exit(1)
     current_folders = workspace.get('folders', [])
     # Remove all existing 📦 and 📚 folders
-    other_folders = [f for f in current_folders if not (f.get('name', '').endswith('(Current)') or f.get('name', '').startswith('📚'))]
+    other_folders = [f for f in current_folders if not (f.get('name', '').endswith('(Current)') or f.get('name', '').startswith('📚') or f.get('name', '').startswith('🔰') or f.get('name', '').startswith('💎') or f.get('name', '').startswith('🏢'))]
     # Add all main modules as (Current)
     new_folders = []
     for i, module_path in enumerate(module_paths):
@@ -158,11 +180,28 @@ try:
         })
     # Add dependencies
     for dep in manifest_deps:
-        module_path = find_module_path(dep)
-        if module_path:
+        result = find_module_path(dep)
+        if result[0]:  # if path was found
+            module_path, source_path = result
+            print(f"Looking for dependency {dep}, found path: {module_path}", file=sys.stderr)
+            
+            # Determine the type of module based on its path
+            if source_path == odoo_addons_path:
+                # Core Odoo module
+                icon = "⚙️" if dep == "base" else "⚙️"
+            elif "/odooenterprise/" in source_path:
+                # Enterprise module
+                icon = "🏢"
+            elif "/odoo18/" in source_path:
+                # Other Odoo addons
+                icon = "📚"
+            else:
+                # Custom/third-party module
+                icon = "➕"
+            
             new_folders.append({
                 "path": module_path,
-                "name": f"📚 {dep}"
+                "name": f"{icon} {dep}"
             })
         else:
             print(f"Warning: Could not find path for dependency {dep}", file=sys.stderr)
@@ -189,6 +228,8 @@ create_new_workspace() {
     shift
     local module_names=("$@")
     local tmp_file=$(mktemp)
+    
+    # Create initial workspace with current modules
     echo '{ "folders": [' > "$tmp_file"
     for i in "${!MODULE_PATHS_ABS[@]}"; do
         local comma=","
@@ -197,6 +238,12 @@ create_new_workspace() {
     done
     echo '], "settings": {} }' >> "$tmp_file"
     mv "$tmp_file" "$workspace_file"
+    
+    # Immediately process dependencies
+    if ! process_workspace_update "${MANIFEST_FILES[@]}"; then
+        echo "Error: Failed to process dependencies"
+        exit 1
+    fi
 }
 
 create_vscode_launch_config() {

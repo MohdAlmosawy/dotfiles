@@ -38,3 +38,19 @@
    ```
 
    Your shell prompt will return immediately, and Cursor will open that folder.
+
+## MCP Server Configuration (Cursor)
+
+This repo uses a template for Cursor's MCP server config: `templates/mcp.json.template`.
+
+- **Sensitive keys and passwords are NOT stored in git.**
+- The real config (`~/.cursor/mcp.json`) is created from the template during setup.
+- **After running `./setup.sh`, you must edit `~/.cursor/mcp.json` and fill in your real API keys and passwords.**
+- Never commit your real `mcp.json` file to git.
+
+If you ever need to reset your MCP config, just copy the template again:
+
+```sh
+cp ~/dotfiles/templates/mcp.json.template ~/.cursor/mcp.json
+# Then edit ~/.cursor/mcp.json to add your secrets
+```

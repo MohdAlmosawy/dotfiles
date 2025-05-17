@@ -136,6 +136,14 @@ else
   create_cursor_desktop_entry
 fi
 
+# === Setup Cursor MCP config ===
+read -rp "Do you want to set up Cursor MCP config now? [y/N]: " setup_mcp
+if [[ "$setup_mcp" =~ ^[Yy]$ ]]; then
+  "$DOTFILES_DIR/scripts/setup_mcp.sh"
+else
+  echo "Skipping MCP config setup. You can run scripts/setup_mcp.sh later."
+fi
+
 # Source the appropriate RC file to update PATH
 source_shell_rc
 

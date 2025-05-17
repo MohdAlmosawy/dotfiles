@@ -134,7 +134,10 @@ tasks/
 **/package-lock.json
 
 # Ignore any scripts folder globally
-**/scripts/
+# **/scripts/
 
-# (Optionally) Ignore README if you don’t want it tracked globally
+# (Optionally) Ignore README if you don't want it tracked globally
 # README.md
+
+# Ignore Cursor MCP config with secrets
+.cursor/mcp.json

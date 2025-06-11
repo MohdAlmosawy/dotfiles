@@ -136,8 +136,8 @@ else
   create_cursor_desktop_entry
 fi
 
-# === Setup Cursor MCP config ===
-read -rp "Do you want to set up Cursor MCP config now? [y/N]: " setup_mcp
+# === Setup MCP config ===
+read -rp "Do you want to set up MCP config now? [y/N]: " setup_mcp
 if [[ "$setup_mcp" =~ ^[Yy]$ ]]; then
   "$DOTFILES_DIR/scripts/setup_mcp.sh"
 else

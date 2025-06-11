@@ -1,19 +1,19 @@
 {
   "mcpServers": {
     "odoo": {
-      "command": "/home/sayedmohamed/odoo16-venv/bin/python3",
+      "command": "<VIRTUAL_ENV>/bin/python3",
       "args": [
         "-m",
         "odoo_mcp"
       ],
       "env": {
-        "ODOO_URL": "http://localhost:8069/",
-        "ODOO_DB": "alsalamlocal",
+        "ODOO_URL": "<ODOO_URL>",
+        "ODOO_DB": "<ODOO_DB>",
         "ODOO_USERNAME": "<ODOO_USERNAME>",
         "ODOO_PASSWORD": "<ODOO_PASSWORD>",
-        "VIRTUAL_ENV": "/home/sayedmohamed/odoo16-venv",
-        "PYTHONPATH": "/home/sayedmohamed/mcp-odoo:/home/sayedmohamed/odoo16-venv/lib/python3.12/site-packages",
-        "PATH": "/home/sayedmohamed/odoo16-venv/bin:${PATH}"
+        "VIRTUAL_ENV": "<VIRTUAL_ENV>",
+        "PYTHONPATH": "<PYTHONPATH>",
+        "PATH": "<PATH>"
       }
     },
     "taskmaster-ai": {
@@ -31,4 +31,4 @@
       }
     }
   }
-} 
+}

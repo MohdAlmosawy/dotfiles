@@ -1,0 +1,4 @@
+
+[options]
+# Filled by setup/create scripts
+addons_path = "<ADDONS_PATH>"

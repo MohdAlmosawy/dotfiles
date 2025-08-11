@@ -1,10 +1,10 @@
-[user]
-  name = MohdAlmosawy
-  email = mohd.s.aqeel@gmail.com
+[include]
+    path = ~/.gitconfig.local
 
 [core]
-  excludesFile = ~/.gitignore_global
-  editor = nano
+    excludesFile = ~/.gitignore_global
 
 [color]
-  ui = auto
+    ui = auto
+[credential]
+	helper = store

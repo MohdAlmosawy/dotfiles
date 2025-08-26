@@ -199,8 +199,54 @@ maybe_install_cursor() {
 # Run setup
 # -----------------------------
 
-# 1) Git identity (local, per-user)
-create_gitconfig_local
+# 1) Git identity (local, per-user) — make optional if already configured
+# If DOTFILES_NONINTERACTIVE=1 then SETUP_GIT controls behavior:
+#   SETUP_GIT=1  -> run setup
+#   SETUP_GIT=0  -> skip setup
+#   unset        -> skip by default in non-interactive
+# In interactive mode, prompt only if git user.name or user.email are missing.
+should_setup_git() {
+  # If git isn't installed, nothing to do
+  if ! command -v git >/dev/null 2>&1; then
+    return 1
+  fi
+
+  local existing_name existing_email
+  # Check for a configured identity at any level (local, global, system)
+  existing_name=$(git config --get user.name || true)
+  existing_email=$(git config --get user.email || true)
+
+  if [[ "${DOTFILES_NONINTERACTIVE:-0}" == "1" ]]; then
+    # Non-interactive: allow explicit skip, otherwise default to running setup
+    case "${SETUP_GIT:-}" in
+      0) return 1 ;; # explicitly skip
+      1) return 0 ;; # force setup
+      *) ;;           # unset -> continue to detection below
+    esac
+  fi
+
+  # If both name and email exist, print summary and skip
+  if [[ -n "$existing_name" && -n "$existing_email" ]]; then
+    echo "Found Git identity: name='$existing_name' email='$existing_email' — skipping setup."
+    return 1
+  fi
+
+  # Interactive: if either name or email is missing, prompt to run setup
+  if [[ "${DOTFILES_NONINTERACTIVE:-0}" != "1" ]]; then
+    read -rp "No Git identity found. Create one now? [y/N]: " ans || true
+    [[ "$ans" =~ ^[Yy]$ ]]
+    return
+  fi
+
+  # Non-interactive and no identity -> run setup by default
+  return 0
+}
+
+if should_setup_git; then
+  create_gitconfig_local
+else
+  echo "Skipping Git identity setup. To force it, set SETUP_GIT=1 or run create_gitconfig_local manually."
+fi
 
 # 2) Link global gitignore and gitconfig from the repo
 echo "Linking global gitignore…"

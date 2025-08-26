@@ -232,6 +232,7 @@ get_odoo_source_dir() {
 # --- Function to process workspace update ---
 process_workspace_update() {
   local manifest_files=("$@")
+    # Shortcut: if all manifests have empty depends, skip python/jq
   local all_empty=1
   for mf in "${manifest_files[@]}"; do
     if ! grep -q "depends[[:space:]]*=[[:space:]]*\[\]" "$mf"; then
@@ -253,7 +254,6 @@ process_workspace_update() {
   local tmp_file
   tmp_file=$(mktemp)
   TMPFILES+=("$tmp_file")
-
   local addon_paths_str="["
   for path in "${ADDON_PATHS[@]}"; do
     addon_paths_str+="\"$path\", "
@@ -268,6 +268,7 @@ process_workspace_update() {
   local module_paths_pylist
   module_paths_pylist=$(printf "'%s', " "${MODULE_PATHS_ABS[@]}")
   module_paths_pylist="[${module_paths_pylist%, }]"
+    # Get Odoo source directory from config file dynamically
   local odoo_source_dir
   odoo_source_dir=$(get_odoo_source_dir "$CONFIG_FILE") || return 1
   local odoo_addons_path="${odoo_source_dir}/addons"
@@ -379,7 +380,79 @@ create_vscode_launch_config() {
   base_dir=$(get_odoo_source_dir "$config_file")
   local program_path="${base_dir}/odoo-bin"
 
-  local db_name="odoo${ODOO_VERSION}demodata"
+  # Determine database name: prefer explicit `db_name` in config, then try a simple `dbfilter` extraction,
+  # otherwise fall back to the previous default: odoo${ODOO_VERSION}demodata
+  local db_name=""
+
+  # 1) Highest priority: environment variable ODOO_DB (allows per-machine override)
+  if [[ -n "${ODOO_DB:-}" ]]; then
+    db_name="$ODOO_DB"
+    echo "Using DB from ODOO_DB env var: $db_name" >&2
+  else
+    # 1b) Machine-wide persisted DB (so user doesn't get prompted repeatedly)
+    local machine_db_file="$HOME/.config/odoo/odoo_db"
+    if [[ -f "$machine_db_file" ]]; then
+      db_name=$(sed -n '1p' "$machine_db_file" | sed "s/[\"' ]//g" | xargs || true)
+      if [[ -n "$db_name" ]]; then
+        echo "Using DB from $machine_db_file: $db_name" >&2
+      fi
+    fi
+
+    # 2) Optional per-repo local override file (PRIMARY_MODULE_PATH/.odoo.local)
+    local local_override_file="${PRIMARY_MODULE_PATH}/.odoo.local"
+    if [[ -f "$local_override_file" ]]; then
+      db_name=$(grep -E '^\s*db_name\s*=' "$local_override_file" | cut -d'=' -f2- | sed "s/[\"' ]//g" | xargs || true)
+      if [[ -n "$db_name" ]]; then
+        echo "Using DB from $local_override_file: $db_name" >&2
+      fi
+    fi
+  fi
+
+  # 3) If not set yet, try config-derived values (db_name or safe dbfilter)
+  if [[ -z "$db_name" ]]; then
+    # Read db_name if present (strip quotes and whitespace)
+    db_name=$(grep -E '^\s*db_name\s*=' "$config_file" | cut -d'=' -f2- | sed "s/[\"' ]//g" | xargs || true)
+  if [[ -z "$db_name" ]]; then
+    # Try dbfilter (may be a regex). Keep only a simple literal if it looks safe.
+    local dbfilter
+    dbfilter=$(grep -E '^\s*dbfilter\s*=' "$config_file" | cut -d'=' -f2- | sed "s/[\"']//g" | xargs || true)
+  if [[ -n "$dbfilter" ]]; then
+      # Remove common regex anchors and grouping characters; pick first alternative if '|' present
+      local candidate
+      candidate=$(echo "$dbfilter" | sed -E 's/^\^//; s/\$\s*$//; s/\(.*\)//g' | cut -d'|' -f1 | xargs)
+      # Only accept candidate if it's a safe DB name (alphanum, dot, underscore, hyphen)
+      if [[ "$candidate" =~ ^[A-Za-z0-9._-]+$ ]]; then
+        db_name="$candidate"
+        echo "Using DB from dbfilter heuristic: $db_name" >&2
+      fi
+    fi
+  fi
+  fi
+
+    if [[ -z "$db_name" ]]; then
+      # If running interactively, offer to persist choice to machine-wide file so we don't re-prompt
+      if [[ -t 1 && -z "${ODOO_DB:-}" ]]; then
+        read -rp "No DB detected in config; set a default ODOO_DB for this machine now? [y/N]: " ans || true
+        if [[ "$ans" =~ ^[Yy]$ ]]; then
+          read -rp "Enter DB name to persist (e.g. alsalamlocal): " chosen || true
+          chosen="${chosen:-}"
+          if [[ -n "$chosen" ]]; then
+            mkdir -p "$(dirname "$machine_db_file")"
+            echo "$chosen" > "$machine_db_file"
+            echo "Persisted machine DB to $machine_db_file" >&2
+            # Export for current run so other checks see it
+            export ODOO_DB="$chosen"
+            db_name="$chosen"
+          fi
+        fi
+      fi
+    fi
+
+  if [[ -z "$db_name" ]]; then
+    db_name="odoo${ODOO_VERSION}demodata"
+    echo "Falling back to default DB name: $db_name" >&2
+  fi
+
   local xmlrpc_port
   xmlrpc_port=$(grep -E '^\s*xmlrpc_port\s*=' "$config_file" | cut -d'=' -f2 | xargs)
 

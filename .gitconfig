@@ -8,3 +8,12 @@
     ui = auto
 [credential]
 	helper = store
+[pull]
+	rebase = true
+[rebase]
+	autoStash = true
+	updateRefs = true
+[fetch]
+	prune = true
+[branch]
+	autoSetupRebase = always

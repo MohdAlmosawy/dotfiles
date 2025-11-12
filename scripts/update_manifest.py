@@ -19,6 +19,10 @@ import ast
 import os
 import textwrap
 import pprint
+import io
+import tokenize
+from typing import List
+import re
 from typing import Dict, Optional, Tuple
 
 
@@ -160,6 +164,56 @@ def format_manifest_dict(d: Dict) -> str:
     return '\n'.join(lines) + '\n'
 
 
+def format_manifest_blocks(d: Dict) -> List[tuple[str, List[str]]]:
+    """Return ordered list of (key, block_lines) for the manifest dict.
+
+    Each block_lines is the formatted lines (no trailing blank line). Caller
+    can insert comments or blank lines as desired when assembling the final
+    dict text.
+    """
+    preferred = [
+        'name', 'summary', 'description', 'author', 'maintainer', 'website', 'category', 'version', 'license', 'currency', 'price',
+        'depends', 'data', 'application', 'installable', 'auto_install'
+    ]
+    indent = 4
+    indent_str = ' ' * indent
+    blocks: List[tuple[str, List[str]]] = []
+    used = set()
+
+    def make_block(key: str, v) -> List[str]:
+        lines: List[str] = []
+        if key in ('summary', 'description') and isinstance(v, str):
+            q = _quote_str(v, indent)
+            lines.append(f"{indent_str}'{key}': {q},")
+        elif isinstance(v, str):
+            lines.append(f"{indent_str}'{key}': {_quote_str(v, indent)},")
+        elif isinstance(v, list):
+            lst = _render_list(v, indent)
+            lst_lines = lst.splitlines()
+            # first line should be attached to the key
+            if lst_lines:
+                first = lst_lines[0]
+                lines.append(f"{indent_str}'{key}': {first}")
+                for ln in lst_lines[1:]:
+                    lines.append(indent_str + ln)
+                # ensure closing bracket line ends with a comma
+                if not lines[-1].rstrip().endswith(','):
+                    lines[-1] = lines[-1] + ','
+        else:
+            lines.append(f"{indent_str}'{key}': {repr(v)},")
+        return lines
+
+    for key in preferred:
+        if key in d:
+            used.add(key)
+            blocks.append((key, make_block(key, d[key])))
+
+    for key in sorted(k for k in d.keys() if k not in used):
+        blocks.append((key, make_block(key, d[key])))
+
+    return blocks
+
+
 def process_file(path: str, defaults: Dict[str, object], dry_run: bool = False, backup: bool = True, debug: bool = False) -> bool:
     """Process a single __manifest__.py file. Returns True if file was changed.
     """
@@ -211,11 +265,247 @@ def process_file(path: str, defaults: Dict[str, object], dry_run: bool = False, 
         return False
 
     old_segment = src[start:end]
+    # If nothing changes (ignoring comments and whitespace), skip
     if old_segment.strip() == new_dict_text.strip():
         print(f"No changes needed for {path}")
         return False
 
-    new_src = src[:start] + new_dict_text + src[end:]
+    # We'll use token/line analysis to preserve comments and attach them to keys
+    old_lines = old_segment.splitlines()
+    # Find key start lines using a regex (keys like 'name':)
+    key_re = re.compile(r"^\s*'(?P<key>[^']+)'\s*:")
+    key_positions: list[tuple[str, int]] = []  # (key, line_index)
+    for idx, ln in enumerate(old_lines):
+        m = key_re.match(ln)
+        if m:
+            key_positions.append((m.group('key'), idx))
+
+    # Build regions per key
+    regions: dict[str, tuple[int, int]] = {}
+    for i, (k, idx) in enumerate(key_positions):
+        start_idx = idx
+        end_idx = key_positions[i + 1][1] if i + 1 < len(key_positions) else len(old_lines)
+        regions[k] = (start_idx, end_idx)
+
+    # Helper: collect preceding comments for a key (lines immediately above key)
+    def collect_preceding_comments(start_idx: int) -> list[str]:
+        out: list[str] = []
+        i = start_idx - 1
+        while i >= 0:
+            ln = old_lines[i]
+            if ln.strip() == '':
+                # stop at blank line (preserve separation)
+                break
+            if ln.lstrip().startswith('#'):
+                out.insert(0, ln)
+                i -= 1
+                continue
+            break
+        return out
+
+    # For list-valued keys, capture sequence of old items/comments inside the list
+    def parse_old_list_region(start: int, end: int) -> list[tuple[str, str]]:
+        # returns sequence of ('item', text) or ('comment', text)
+        seq: list[tuple[str, str]] = []
+        in_list = False
+        for i in range(start, end):
+            ln = old_lines[i]
+            s = ln.strip()
+            if not in_list:
+                if s.startswith('['):
+                    in_list = True
+                    # if bracket and items on same line, continue
+                    continue
+                else:
+                    continue
+            else:
+                # inside list until we see closing bracket
+                if s.startswith(']') or s.endswith('],'):
+                    break
+                if s.lstrip().startswith('#'):
+                    seq.append(('comment', ln.rstrip()))
+                else:
+                    if s == ',':
+                        continue
+                    # consider non-empty non-comment as item
+                    if s:
+                        seq.append(('item', ln.strip().rstrip(',')))
+        return seq
+
+    def _looks_like_list_item(line: str) -> bool:
+        s = line.strip()
+        return bool(s) and (s[0] == '"' or s[0] == "'")
+
+    def _list_line_indent(line: str) -> str:
+        # return leading whitespace of the line
+        return line[:len(line) - len(line.lstrip(' '))]
+
+    # Build formatted blocks
+    blocks = format_manifest_blocks(updated)
+
+    # Collect preserved comments
+    comments_before: dict[str, list[str]] = {}
+    inline_comments: dict[str, str] = {}
+    inside_list_comments: dict[str, list[tuple[str, str]]] = {}
+    for key, (kstart, kend) in regions.items():
+        # preceding comments
+        comments_before[key] = collect_preceding_comments(kstart)
+        # inline comment on key line
+        ln = old_lines[kstart]
+        if '#' in ln:
+            parts = ln.split('#', 1)
+            inline_comments[key] = '#' + parts[1].rstrip()
+        # if key has a list, parse inside comments
+        region_seq = parse_old_list_region(kstart, kend)
+        if region_seq:
+            inside_list_comments[key] = region_seq
+
+    # Assemble new segment, attaching comments
+    assembled: list[str] = []
+    assembled.append('{')
+    # groups that should not be separated by blank lines when adjacent
+    group_no_blank = [
+        ("author", "maintainer", "website"),
+        ("category", "version", "license", "currency", "price"),
+        ("application", "installable", "auto_install"),
+    ]
+
+    def _same_group(a: str, b: str) -> bool:
+        for g in group_no_blank:
+            if a in g and b in g:
+                return True
+        return False
+    for key, block_lines in blocks:
+        # attach preceding comments (if any)
+        pre = comments_before.get(key, [])
+        if pre:
+            assembled.extend(pre)
+
+        # handle block lines
+        if block_lines:
+            # if this is a list block and we have inside_list_comments, merge
+            if key in inside_list_comments and any('[' in ln for ln in block_lines):
+                # reconstruct list with preserved comments
+                seq = inside_list_comments[key]
+                # find indices of item lines in block_lines
+                new_block: list[str] = []
+                item_idx = 0
+                # find where the '[' occurs
+                for ln in block_lines:
+                    if '[' in ln:
+                        new_block.append(ln)
+                        continue
+                    if ']' in ln:
+                        # before closing bracket, append any remaining items
+                        # but we assume items already in place; just append ln
+                        new_block.append(ln)
+                        continue
+                    # assume these are item lines (or commas)
+                    new_block.append(ln)
+
+                # now interleave comments: we will insert comment lines before/among items
+                # Build simplified list of item lines indices
+                item_lines = [i for i, ln in enumerate(new_block) if _looks_like_list_item(ln)]
+                merged: list[str] = []
+                item_cursor = 0
+                for typ, content in seq:
+                    if typ == 'comment':
+                        # insert comment line with proper indentation
+                        # use indentation from the first item or default
+                        if item_lines:
+                            indent = _list_line_indent(new_block[item_lines[0]])
+                        else:
+                            indent = ' ' * (4 + 4)
+                        merged.append(indent + content.lstrip())
+                    else:
+                        # output next actual item from new_block
+                        if item_cursor < len(item_lines):
+                            merged.append(new_block[item_lines[item_cursor]].rstrip())
+                            item_cursor += 1
+                # append any remaining items not consumed
+                while item_cursor < len(item_lines):
+                    merged.append(new_block[item_lines[item_cursor]].rstrip())
+                    item_cursor += 1
+
+                # build final block: header lines (before first item), merged items, closing lines
+                header = []
+                footer = []
+                seen_items = False
+                for ln in new_block:
+                    if _looks_like_list_item(ln):
+                        seen_items = True
+                        break
+                    header.append(ln)
+                # find closing bracket
+                closing_idx = None
+                for i, ln in enumerate(new_block[::-1]):
+                    if ']' in ln:
+                        closing_idx = len(new_block) - 1 - i
+                        break
+                if closing_idx is not None:
+                    footer = new_block[closing_idx:]
+                assembled.extend(header)
+                for mln in merged:
+                    assembled.append(mln)
+                assembled.extend(footer)
+            else:
+                # normal block, attach inline comment if present
+                first = block_lines[0]
+                if key in inline_comments:
+                    first = first.rstrip() + '  ' + inline_comments[key]
+                assembled.append(first)
+                assembled.extend(block_lines[1:])
+
+        # decide whether to add a blank line between this key and the next
+        add_blank = True
+        if i + 1 < len(blocks):
+            next_key = blocks[i + 1][0]
+            if _same_group(key, next_key):
+                add_blank = False
+        if add_blank:
+            assembled.append('')
+
+    if assembled and assembled[-1] == '':
+        assembled.pop()
+    assembled.append('}')
+
+    # Post-process: remove empty-only lines between keys that belong to the same group
+    key_re = re.compile(r"^\s*'(?P<key>[^']+)'\s*:")
+    i = 0
+    while i < len(assembled):
+        m = key_re.match(assembled[i])
+        if m:
+            cur_key = m.group('key')
+            # scan forward to find next key line
+            j = i + 1
+            while j < len(assembled):
+                if assembled[j].strip() == '':
+                    j += 1
+                    continue
+                if assembled[j].lstrip().startswith('#'):
+                    j += 1
+                    continue
+                # found a non-empty non-comment line
+                mk = key_re.match(assembled[j])
+                if mk:
+                    next_key = mk.group('key')
+                    # if in same group, remove empty-only lines between i and j
+                    if _same_group(cur_key, next_key):
+                        k = i + 1
+                        while k < j:
+                            if assembled[k].strip() == '':
+                                assembled.pop(k)
+                                j -= 1
+                            else:
+                                k += 1
+                        # we've removed empty-only lines between the grouped keys;
+                        # break to advance the outer cursor
+                        break
+                break
+        i += 1
+
+    new_segment = '\n'.join(assembled) + '\n'
+    new_src = src[:start] + new_segment + src[end:]
 
     if dry_run:
         print(f"[dry-run] Would update {path}")

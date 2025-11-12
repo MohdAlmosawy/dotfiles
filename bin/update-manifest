@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Wrapper to run the update_manifest.py script from the repo `bin/` directory
+# Usage: update-manifest [args]
+
+set -euo pipefail
+
+# Resolve the realpath of this script (follow symlinks) to find the repo root.
+# This makes the wrapper safe to symlink into ~/bin by setup.sh.
+resolve_link() {
+  local f="$1"
+  # Use readlink -f where available, otherwise fall back to a loop
+  if command -v readlink >/dev/null 2>&1; then
+    readlink -f "$f"
+    return
+  fi
+  # fallback: resolve manually
+  while [ -L "$f" ]; do
+    local target
+    target=$(readlink "$f")
+    case "$target" in
+      /*) f="$target" ;;
+      *) f="$(dirname "$f")/$target" ;;
+    esac
+  done
+  echo "$f"
+}
+
+SCRIPT_PATH="$(resolve_link "${BASH_SOURCE[0]}")"
+REPO_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
+PY_SCRIPT="$REPO_ROOT/scripts/update_manifest.py"
+
+if [ ! -f "$PY_SCRIPT" ]; then
+  echo "error: $PY_SCRIPT not found" >&2
+  exit 2
+fi
+
+exec python3 "$PY_SCRIPT" "$@"

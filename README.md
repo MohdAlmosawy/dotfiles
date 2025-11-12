@@ -26,6 +26,15 @@ Run it only if you use Cursor’s MCP feature — otherwise you can ignore this 
 
 ---
 
+
+## 🧰 update-manifest
+
+A small CLI helper installed by `./setup.sh` into `~/bin` that updates and normalizes Odoo `__manifest__.py` files with your preferred defaults (author, license, version, application flags, etc.).
+
+Run `update-manifest --help` for available options.
+
+---
+
 ## 🗒️ Notes & tips
 
 - Workspaces and `.vscode` settings are **VS Code–compatible**.  

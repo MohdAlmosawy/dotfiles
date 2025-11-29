@@ -119,6 +119,67 @@ source_shell_rc() {
 }
 
 # -----------------------------
+# VS Code (Debian/Ubuntu, optional)
+# -----------------------------
+
+install_vscode_deb() {
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "curl not found; skipping VS Code install."
+    return
+  fi
+
+  if ! command -v sudo >/dev/null 2>&1; then
+    echo "sudo not available; skipping VS Code install."
+    return
+  fi
+
+  if ! command -v apt >/dev/null 2>&1 && ! command -v apt-get >/dev/null 2>&1; then
+    echo "apt not found; VS Code install only supported on Debian/Ubuntu-like systems. Skipping."
+    return
+  fi
+
+  echo "→ Adding Microsoft VS Code APT repository…"
+  sudo mkdir -p /etc/apt/keyrings
+  curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | \
+    sudo gpg --dearmor -o /etc/apt/keyrings/packages.microsoft.gpg
+  echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | \
+    sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
+
+  echo "→ Updating APT package cache…"
+  sudo apt update
+
+  echo "→ Installing VS Code…"
+  sudo apt install -y code
+
+  echo "✔ VS Code installed (code)"
+}
+
+maybe_install_vscode() {
+  case "$(uname -s)" in
+    Linux)
+      if ! command -v apt >/dev/null 2>&1 && ! command -v apt-get >/dev/null 2>&1; then
+        echo "Non-Debian-based Linux detected; skipping VS Code."
+        return
+      fi
+
+      if [[ "${DOTFILES_NONINTERACTIVE:-0}" == "1" ]]; then
+        [[ "${INSTALL_VSCODE:-0}" == "1" ]] && install_vscode_deb
+      else
+        if command -v code >/dev/null 2>&1; then
+          echo "VS Code (code) already installed; skipping."
+        else
+          read -rp "Install VS Code (code) via apt now? [y/N]: " ans || true
+          [[ "$ans" =~ ^[Yy]$ ]] && install_vscode_deb
+        fi
+      fi
+      ;;
+    *)
+      echo "Non-Linux system detected; skipping VS Code."
+      ;;
+  esac
+}
+
+# -----------------------------
 # Cursor (Linux only, optional)
 # -----------------------------
 create_cursor_desktop_entry() {

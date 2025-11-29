@@ -227,6 +227,14 @@ install_antigravity_deb() {
 
   echo "→ Installing Antigravity…"
   sudo apt install -y antigravity
+
+  # Ensure Antigravity zsh completion file has correct ownership
+  local ag_completion="/usr/share/zsh/vendor-completions/_antigravity"
+  if [ -f "$ag_completion" ]; then
+    echo "→ Fixing Antigravity zsh completion ownership…"
+    sudo chown root:root "$ag_completion" || true
+  fi
+
   echo "✔ Antigravity installed via APT"
 }
 

@@ -241,8 +241,12 @@ maybe_install_antigravity() {
       if [[ "${DOTFILES_NONINTERACTIVE:-0}" == "1" ]]; then
         [[ "${INSTALL_ANTIGRAVITY:-0}" == "1" ]] && install_antigravity_deb
       else
-        read -rp "Install Antigravity (via apt, Debian/Ubuntu only)? [y/N]: " ans || true
-        [[ "$ans" =~ ^[Yy]$ ]] && install_antigravity_deb
+        if command -v antigravity >/dev/null 2>&1; then
+          echo "Antigravity already installed; skipping."
+        else
+          read -rp "Install Antigravity (via apt, Debian/Ubuntu only)? [y/N]: " ans || true
+          [[ "$ans" =~ ^[Yy]$ ]] && install_antigravity_deb
+        fi
       fi
       ;;
     *)

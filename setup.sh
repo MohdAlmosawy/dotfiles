@@ -196,6 +196,62 @@ maybe_install_cursor() {
 }
 
 # -----------------------------
+# Antigravity (Debian/Ubuntu, optional)
+# -----------------------------
+
+install_antigravity_deb() {
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "curl not found; skipping Antigravity install."
+    return
+  fi
+
+  if ! command -v sudo >/dev/null 2>&1; then
+    echo "sudo not available; skipping Antigravity install."
+    return
+  fi
+
+  if ! command -v apt >/dev/null 2>&1 && ! command -v apt-get >/dev/null 2>&1; then
+    echo "apt not found; Antigravity install only supported on Debian/Ubuntu-like systems. Skipping."
+    return
+  fi
+
+  echo "→ Configuring Antigravity APT repository…"
+  sudo mkdir -p /etc/apt/keyrings
+  curl -fsSL https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | \
+    sudo gpg --dearmor -o /etc/apt/keyrings/antigravity-repo-key.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ antigravity-debian main" | \
+    sudo tee /etc/apt/sources.list.d/antigravity.list > /dev/null
+
+  echo "→ Updating APT package cache…"
+  sudo apt update
+
+  echo "→ Installing Antigravity…"
+  sudo apt install -y antigravity
+  echo "✔ Antigravity installed via APT"
+}
+
+maybe_install_antigravity() {
+  case "$(uname -s)" in
+    Linux)
+      if ! command -v apt >/dev/null 2>&1 && ! command -v apt-get >/dev/null 2>&1; then
+        echo "Non-Debian-based Linux detected; skipping Antigravity."
+        return
+      fi
+
+      if [[ "${DOTFILES_NONINTERACTIVE:-0}" == "1" ]]; then
+        [[ "${INSTALL_ANTIGRAVITY:-0}" == "1" ]] && install_antigravity_deb
+      else
+        read -rp "Install Antigravity (via apt, Debian/Ubuntu only)? [y/N]: " ans || true
+        [[ "$ans" =~ ^[Yy]$ ]] && install_antigravity_deb
+      fi
+      ;;
+    *)
+      echo "Non-Linux system detected; skipping Antigravity."
+      ;;
+  esac
+}
+
+# -----------------------------
 # Run setup
 # -----------------------------
 
@@ -276,22 +332,45 @@ done
 # 5) Optionally install Cursor (Linux)
 maybe_install_cursor
 
-# 6) Setup MCP config (optional)
+# 6) Optionally install Antigravity (Debian/Ubuntu via apt)
+maybe_install_antigravity
+
+# 7) Setup MCP config (optional)
 if [[ "${DOTFILES_NONINTERACTIVE:-0}" == "1" ]]; then
-  [[ "${SETUP_MCP:-0}" == "1" ]] && "$DOTFILES_DIR/scripts/setup_mcp.sh" || echo "Skipping MCP config (non-interactive)."
+  # Non-interactive: allow specifying IDE targets via SETUP_MCP_IDES (space/comma separated)
+  # e.g. SETUP_MCP=1 SETUP_MCP_IDES="cursor antigravity"
+  if [[ "${SETUP_MCP:-0}" == "1" ]]; then
+    DOTFILES_MCP_IDES="${SETUP_MCP_IDES:-cursor}" "$DOTFILES_DIR/scripts/setup_mcp.sh"
+  else
+    echo "Skipping MCP config (non-interactive)."
+  fi
 else
   read -rp "Do you want to set up MCP config now? [y/N]: " setup_mcp || true
   if [[ "$setup_mcp" =~ ^[Yy]$ ]]; then
-    "$DOTFILES_DIR/scripts/setup_mcp.sh"
+    echo "Which IDE(s) should MCP be configured for?"
+    echo "  1) Cursor"
+    echo "  2) Antigravity"
+    echo "  3) Both"
+    read -rp "Enter choice [1/2/3, default 1]: " mcp_choice || true
+    mcp_choice="${mcp_choice:-1}"
+
+    case "$mcp_choice" in
+      1) DOTFILES_MCP_IDES="cursor" ;;
+      2) DOTFILES_MCP_IDES="antigravity" ;;
+      3) DOTFILES_MCP_IDES="cursor antigravity" ;;
+      *) echo "Unrecognized choice '$mcp_choice', defaulting to Cursor only."; DOTFILES_MCP_IDES="cursor" ;;
+    esac
+
+    DOTFILES_MCP_IDES="$DOTFILES_MCP_IDES" "$DOTFILES_DIR/scripts/setup_mcp.sh"
   else
     echo "Skipping MCP config setup. You can run scripts/setup_mcp.sh later."
   fi
 fi
 
-# 7) Refresh current shell PATH
+# 8) Refresh current shell PATH
 source_shell_rc
 
-# 8) Optionally set a per-machine ODOO_DB environment variable
+# 9) Optionally set a per-machine ODOO_DB environment variable
 create_odoo_db_env() {
   # Skip in non-interactive runs
   if [[ "${DOTFILES_NONINTERACTIVE:-0}" == "1" ]]; then

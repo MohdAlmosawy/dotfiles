@@ -12,7 +12,38 @@ done
 # --- Robust template path ---
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/../templates/mcp.json.template"
-CONFIG_FILE="$HOME/.cursor/mcp.json"
+
+# Determine which IDE configs to write:
+# - DOTFILES_MCP_IDES can be a space- or comma-separated list, e.g. "cursor antigravity"
+# - Defaults to "cursor" for backward compatibility
+RAW_IDES="${DOTFILES_MCP_IDES:-cursor}"
+MCP_IDES=()
+CONFIG_FILES=()
+
+IFS=', ' read -r -a MCP_IDES <<< "$RAW_IDES"
+
+for ide in "${MCP_IDES[@]}"; do
+  case "$ide" in
+    cursor)
+      CONFIG_FILES+=("$HOME/.cursor/mcp.json")
+      ;;
+    antigravity)
+      # Antigravity expects mcp_config.json under its Gemini config directory
+      CONFIG_FILES+=("$HOME/.gemini/antigravity/mcp_config.json")
+      ;;
+    "" )
+      ;;
+    * )
+      echo "Warning: unknown IDE '$ide' in DOTFILES_MCP_IDES – skipping."
+      ;;
+  esac
+done
+
+if [ ${#CONFIG_FILES[@]} -eq 0 ]; then
+  echo "No valid IDE targets specified in DOTFILES_MCP_IDES ('$RAW_IDES')."
+  echo "Supported values: cursor, antigravity"
+  exit 1
+fi
 
 # --- Atomic template existence check ---
 if [ ! -f "$TEMPLATE_FILE" ]; then
@@ -31,8 +62,10 @@ fi
 TMP_CONFIG=""
 trap 'echo "Aborting."; [[ -n "$TMP_CONFIG" && -f "$TMP_CONFIG" ]] && rm -f "$TMP_CONFIG"' ERR EXIT
 
-# Ensure .cursor directory exists
-mkdir -p ~/.cursor
+# Ensure target config directories exist
+for cfg in "${CONFIG_FILES[@]}"; do
+  mkdir -p "$(dirname "$cfg")"
+done
 
 # --- Odoo config auto-detection ---
 ODOO_CONFIG=""
@@ -256,12 +289,7 @@ if [[ "$enter_perplexity" =~ ^[Yy]$ ]]; then
     fi
 fi
 
-# Save the final configuration safely
-if [ -f "$CONFIG_FILE" ]; then
-    backup="$CONFIG_FILE.bak.$(date +%s)"
-    cp "$CONFIG_FILE" "$backup"
-    echo "Backed up old config to $backup"
-fi
+# Save the final configuration safely to all selected IDE config files
 TMP_CONFIG=$(mktemp)
 echo "$template_config" > "$TMP_CONFIG"
 if ! jq empty "$TMP_CONFIG"; then
@@ -270,7 +298,18 @@ if ! jq empty "$TMP_CONFIG"; then
     exit 1
 fi
 chmod 600 "$TMP_CONFIG"
-mv "$TMP_CONFIG" "$CONFIG_FILE"
+
+for CONFIG_FILE in "${CONFIG_FILES[@]}"; do
+    if [ -f "$CONFIG_FILE" ]; then
+        backup="$CONFIG_FILE.bak.$(date +%s)"
+        cp "$CONFIG_FILE" "$backup"
+        echo "Backed up old config for $CONFIG_FILE to $backup"
+    fi
+    cp "$TMP_CONFIG" "$CONFIG_FILE"
+    echo "Wrote MCP config to $CONFIG_FILE"
+done
+
+rm -f "$TMP_CONFIG"
 trap - ERR EXIT
 
 # Explicit exit on success

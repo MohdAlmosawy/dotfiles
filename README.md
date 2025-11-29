@@ -19,48 +19,9 @@ chmod +x setup.sh
 
 ---
 
-## 🧩 Modular setup structure
+## 🧩 Modular setup
 
-The main entrypoint is still `setup.sh`, but most logic now lives in small, focused modules under `modules/`:
-
-- `modules/common.sh` – shared helpers (safe symlinks, PATH helpers, basic env normalization).
-- `modules/git.sh` – Git identity setup and linking global git config/ignore from the repo.
-- `modules/path_and_bin.sh` – installs `bin/` scripts into `~/bin` and ensures `~/bin` is on your PATH.
-- `modules/editors.sh` – optional editor helpers (Cursor installer, VS Code via apt on Debian/Ubuntu).
-- `modules/antigravity.sh` – optional Antigravity install (Debian/Ubuntu via apt).
-- `modules/mcp.sh` – MCP config orchestration, still delegating to `scripts/setup_mcp.sh`.
-- `modules/odoo.sh` – optional, per-machine `ODOO_DB` convenience config.
-
-A rough repo layout for the core pieces looks like:
-
-```text
-dotfiles/
-├── setup.sh
-├── modules/
-│   ├── common.sh
-│   ├── git.sh
-│   ├── path_and_bin.sh
-│   ├── editors.sh
-│   ├── antigravity.sh
-│   ├── mcp.sh
-│   └── odoo.sh
-└── bin/
-```
-
-`setup.sh` simply detects `DOTFILES_DIR`, loads these modules, and runs them in a fixed sequence so behavior matches the older monolithic script.
-
-### Env vars that influence behavior
-
-All previous environment flags are still honored:
-
-- `DOTFILES_NONINTERACTIVE=1` – run without prompts (for CI/automation).
-- `SETUP_GIT` – controls Git identity setup in non-interactive mode.
-- `SETUP_MCP`, `SETUP_MCP_IDES` – control MCP configuration in non-interactive mode.
-- `INSTALL_CURSOR`, `CURSOR_INSTALL_FORCE` – control Cursor installation on Linux.
-- `INSTALL_ANTIGRAVITY` – control Antigravity installation on Debian/Ubuntu.
-- `INSTALL_VSCODE` – optional VS Code install on Debian/Ubuntu.
-
-Optionally, `DOTFILES_DRYRUN=1` can be used as a hint for future non-destructive runs; for now it is wired only in shared helpers and does not change existing behavior.
+Setup is split into focused modules under `modules/`. Use `DOTFILES_NONINTERACTIVE=1` for automation; other flags like `SETUP_GIT`, `INSTALL_CURSOR`, `INSTALL_ANTIGRAVITY` control optional steps.
 
 ## ⚙️ MCP and templates
 
@@ -78,13 +39,21 @@ Run `update-manifest --help` for available options.
 
 ---
 
+## 🚀 create-odoo-workspace
+
+Scaffolds VS Code-like workspace files for Odoo modules. Automatically discovers dependencies from `__manifest__.py`, configures Python paths, debug settings, and Odoo Language Server integration.
+
+Usage: `create-odoo-workspace.sh <path-to-module> [odoo-version|config-path]`
+
+---
+
 ## 🗒️ Notes & tips
 
-- Workspaces and `.vscode` settings are **VS Code–compatible**.  
+- Workspaces and `.vscode` settings are **VS Code-like**.  
   Only `mcp.json` is Cursor-specific.
 - Add `~/.cursor/mcp.json` and any local `.vscode/launch.json` to your personal `.gitignore` to avoid committing secrets.
 - This repo stays **minimal by design** — no shells, themes, or frameworks; just portable scripts I can trust anywhere.
-- The only custom helper worth noting is `create-odoo-workspace.sh`, which scaffolds Odoo workspaces for Cursor or VS Code.
+- The only custom helper worth noting is `create-odoo-workspace.sh`, which scaffolds Odoo workspaces for VS Code-like editors.
 
 ---
 

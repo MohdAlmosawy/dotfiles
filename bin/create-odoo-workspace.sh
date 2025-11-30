@@ -472,7 +472,12 @@ create_vscode_launch_config() {
         "-d", "${db_name}",
         "-u", "$(IFS=,; echo "${MODULE_NAMES[*]}")",
         "--dev", "all",
-        "--log-handler=odoo.addons.${module_name}:DEBUG"
+        "--log-handler=:ERROR",
+        "--log-handler=odoo.addons.${module_name}:DEBUG",
+        "--log-handler=odoo.modules.registry:INFO",
+        "--log-handler=odoo.addons.base.models.ir_http:INFO",
+        "--log-handler=odoo.addons.bus.models.bus:INFO",
+        "--log-handler=werkzeug:ERROR"
       ],
       "env": {
         "ODOO_ENV": "dev",

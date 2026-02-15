@@ -37,19 +37,61 @@ for dep in jq python3 realpath; do
   fi
 done
 
-# --- Argument parsing (handle relative config paths) ---
-if [ "$#" -lt 1 ]; then
+# --- Argument parsing ---
+# TRANSITIVE_DEPTH: 1 = direct deps only (default), 2+ = that many layers, 0 = unlimited
+TRANSITIVE_DEPTH=1
+ARGS=()
+i=1
+while [ $i -le $# ]; do
+  arg="${!i}"
+  case "$arg" in
+    -t|--transitive)
+      next_idx=$((i+1))
+      if [[ $next_idx -le $# && "${!next_idx}" =~ ^[0-9]+$ ]]; then
+        TRANSITIVE_DEPTH="${!next_idx}"
+        ((i++))
+      else
+        TRANSITIVE_DEPTH=0  # unlimited
+      fi
+      ((i++))
+      ;;
+    --transitive=*)
+      val="${arg#*=}"
+      if [[ "$val" =~ ^[0-9]+$ ]]; then
+        TRANSITIVE_DEPTH="$val"
+      else
+        TRANSITIVE_DEPTH=0
+      fi
+      ((i++))
+      ;;
+    -*)
+      die "Unknown option: $arg. Use -t/--transitive [N] for transitive deps (N=1 direct only, N=2 two layers, etc.; omit N for unlimited)"
+      ;;
+    *)
+      ARGS+=("$arg")
+      ((i++))
+      ;;
+  esac
+done
+
+if [ ${#ARGS[@]} -lt 1 ]; then
   die "Please provide at least one module path
-Usage: create-odoo-workspace.sh <path-to-module1> [<path-to-module2> ...] [odoo-version|config-path]"
+
+Usage: create-odoo-workspace.sh [options] <path-to-module1> [<path-to-module2> ...] [odoo-version|config-path]
+
+Options:
+  -t, --transitive [N]  Include transitive dependencies. N=1 (default): direct deps only.
+                        N=2: direct + their deps, N=3: three layers, etc.
+                        Omit N for unlimited depth."
 fi
 
-LAST_ARG="${!#}"
+LAST_ARG="${ARGS[-1]}"
 if [[ "$LAST_ARG" =~ ^/ || "$LAST_ARG" =~ ^[0-9]+$ ]]; then
   ODOO_ARG="$LAST_ARG"
-  MODULE_PATHS=("${@:1:$(($#-1))}")
+  MODULE_PATHS=("${ARGS[@]:0:$((${#ARGS[@]}-1))}")
 else
   ODOO_ARG=""
-  MODULE_PATHS=("$@")
+  MODULE_PATHS=("${ARGS[@]}")
 fi
 
 # --- Validate all module paths ---
@@ -313,6 +355,8 @@ process_workspace_update() {
   odoo_source_dir=$(get_odoo_source_dir "$CONFIG_FILE") || return 1
   local odoo_addons_path="${odoo_source_dir}/addons"
   echo "Debug: Odoo addons path: $odoo_addons_path" >&2
+  [[ "$TRANSITIVE_DEPTH" -gt 1 ]] && echo "Debug: Transitive depth: $TRANSITIVE_DEPTH" >&2
+  [[ "$TRANSITIVE_DEPTH" -eq 0 ]] && echo "Debug: Transitive depth: unlimited" >&2
 
   if python3 - <<EOF
 import json, sys, os
@@ -322,6 +366,8 @@ module_paths = $module_paths_pylist
 odoo_addons_path = "$odoo_addons_path"
 workspace_file = "$workspace_file"
 tmp_file = "$tmp_file"
+transitive_depth = $TRANSITIVE_DEPTH
+
 def get_manifest_deps(files):
     deps = set()
     import ast
@@ -334,6 +380,7 @@ def get_manifest_deps(files):
         except Exception as e:
             print(f"Error reading manifest {mf}: {e}", file=sys.stderr)
     return deps
+
 def read_workspace():
     try:
         with open(workspace_file, 'r') as f:
@@ -341,6 +388,7 @@ def read_workspace():
     except Exception as e:
         print(f"Error reading workspace: {e}", file=sys.stderr)
         return None
+
 def find_module_path(module_name, addon_paths):
     for path in addon_paths:
         full_path = os.path.join(path, module_name)
@@ -350,9 +398,36 @@ def find_module_path(module_name, addon_paths):
     if os.path.isdir(full_path):
         return full_path, odoo_addons_path
     return None, None
+
+def get_transitive_deps(manifest_files, module_names, addon_paths, odoo_addons_path, max_depth):
+    """Collect deps up to max_depth layers. max_depth=1: direct only, 2: +1 layer, 0: unlimited."""
+    all_deps = set()
+    current_layer = get_manifest_deps(manifest_files) - set(module_names)
+    all_deps.update(current_layer)
+    depth = 1
+    while max_depth == 0 or depth < max_depth:
+        next_manifests = []
+        for dep_name in current_layer:
+            res = find_module_path(dep_name, addon_paths)
+            if res[0]:
+                path, _ = res
+                for mf_name in ('__manifest__.py', '__openerp__.py'):
+                    mf = os.path.join(path, mf_name)
+                    if os.path.isfile(mf):
+                        next_manifests.append(mf)
+                        break
+        if not next_manifests:
+            break
+        next_deps = get_manifest_deps(next_manifests) - set(module_names) - all_deps
+        if not next_deps:
+            break
+        all_deps.update(next_deps)
+        current_layer = next_deps
+        depth += 1
+    return all_deps
+
 addon_paths = $addon_paths_str
-deps = get_manifest_deps(manifest_files)
-deps = set(deps) - set(module_names)
+deps = get_transitive_deps(manifest_files, module_names, addon_paths, odoo_addons_path, transitive_depth)
 ws = read_workspace()
 if not ws:
     print("Error: Could not read workspace file", file=sys.stderr)

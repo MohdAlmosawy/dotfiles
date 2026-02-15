@@ -31,6 +31,10 @@ for ide in "${MCP_IDES[@]}"; do
       # Antigravity expects mcp_config.json under its Gemini config directory
       CONFIG_FILES+=("$HOME/.gemini/antigravity/mcp_config.json")
       ;;
+    vscode)
+      # VS Code expects mcp.json in the User directory
+      CONFIG_FILES+=("$HOME/.vscode/mcp.json")
+      ;;
     "" )
       ;;
     * )
@@ -41,7 +45,7 @@ done
 
 if [ ${#CONFIG_FILES[@]} -eq 0 ]; then
   echo "No valid IDE targets specified in DOTFILES_MCP_IDES ('$RAW_IDES')."
-  echo "Supported values: cursor, antigravity"
+  echo "Supported values: cursor, antigravity, vscode"
   exit 1
 fi
 

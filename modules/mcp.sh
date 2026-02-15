@@ -30,15 +30,17 @@ mcp_setup_run() {
       echo "Which IDE(s) should MCP be configured for?"
       echo "  1) Cursor"
       echo "  2) Antigravity"
-      echo "  3) Both"
-      read -rp "Enter choice [1/2/3, default 1]: " mcp_choice || true
+      echo "  3) VS Code"
+      echo "  4) All"
+      read -rp "Enter choice [1/2/3/4, default 1]: " mcp_choice || true
       mcp_choice="${mcp_choice:-1}"
 
       local DOTFILES_MCP_IDES
       case "$mcp_choice" in
         1) DOTFILES_MCP_IDES="cursor" ;;
         2) DOTFILES_MCP_IDES="antigravity" ;;
-        3) DOTFILES_MCP_IDES="cursor antigravity" ;;
+        3) DOTFILES_MCP_IDES="vscode" ;;
+        4) DOTFILES_MCP_IDES="cursor antigravity vscode" ;;
         *) echo "Unrecognized choice '$mcp_choice', defaulting to Cursor only."; DOTFILES_MCP_IDES="cursor" ;;
       esac
 

@@ -209,24 +209,64 @@ for MODULE_PATH in "${MODULE_PATHS_ABS[@]}"; do
 done
 
 # --- Helper: robustly extract Odoo source dir from config file ---
+# Uses addons_path entries ending with /addons, or ODOO_SOURCE_DIR env var, or common fallbacks
 get_odoo_source_dir() {
   local config_file="$1"
   local odoo_source_dir=""
+  local ver="${ODOO_VERSION:-16}"
+
+  # 1) Explicit env override (per-version or generic)
+  if [[ -n "${ODOO_SOURCE_DIR:-}" ]]; then
+    odoo_source_dir="$ODOO_SOURCE_DIR"
+  elif [[ -n "$(eval "echo \${ODOO${ver}_SOURCE_DIR:-}")" ]]; then
+    odoo_source_dir=$(eval "echo \${ODOO${ver}_SOURCE_DIR}")
+  fi
+  if [[ -n "$odoo_source_dir" ]]; then
+    [[ -d "$odoo_source_dir" ]] || die "ODOO_SOURCE_DIR is set but not a directory: $odoo_source_dir"
+    realpath "$odoo_source_dir"
+    return
+  fi
+
+  # 2) Infer from addons_path
   IFS=',' read -ra paths <<< "$(awk -F= '/^[[:space:]]*addons_path[[:space:]]*=/ {print $2}' "$config_file" | sed "s/[\"']//g")"
   for p in "${paths[@]}"; do
     p="${p#"${p%%[![:space:]]*}"}"
     p="${p%"${p##*[![:space:]]}"}"
-    if [[ "$p" == */addons ]]; then
+    # 2a) Path ending with /addons → parent is Odoo source
+    if [[ "$p" == */addons ]] && [[ -d "$p" ]]; then
       odoo_source_dir="${p%/addons}"
-      break
+      realpath "$odoo_source_dir"
+      return
+    fi
+    # 2b) Path like .../odoo16_modules → sibling odoo16 is Odoo source (odoo16_modules ≈ odoo16/addons)
+    if [[ "$p" == *"/odoo${ver}_modules" ]] && [[ -d "$p" ]]; then
+      local cand="${p%/odoo${ver}_modules}/odoo${ver}"
+      [[ -d "${cand}/odoo/addons" ]] && { realpath "$cand"; return; }
     fi
   done
-  if [ -z "$odoo_source_dir" ]; then
-    echo "DEBUG: addons_path line: '$(awk -F= '/^[[:space:]]*addons_path[[:space:]]*=/ {print $2}' "$config_file")'" >&2
-    echo "DEBUG: parsed paths: ${paths[*]}" >&2
-    die "Could not determine Odoo source directory from config file $config_file (no path ending with /addons in addons_path)"
-  fi
-  realpath "$odoo_source_dir"
+
+  # 3) Fallbacks when addons_path has no /addons or odoo*_modules entry
+  local candidates=(
+    "$HOME/odoo${ver}"
+    "$HOME/odoo${ver}-source"
+    "/usr/lib/python3/dist-packages"
+    "/usr/share/odoo"
+  )
+  for g in "$HOME/odoo${ver}-venv"/lib/python*/site-packages; do
+    [[ -d "$g" ]] && candidates+=("$g")
+  done
+
+  for c in "${candidates[@]}"; do
+    [[ -e "$c" ]] || continue
+    if [[ -d "${c}/odoo/addons" ]]; then
+      realpath "$c"
+      return
+    fi
+  done
+
+  echo "DEBUG: addons_path line: '$(awk -F= '/^[[:space:]]*addons_path[[:space:]]*=/ {print $2}' "$config_file")'" >&2
+  echo "DEBUG: parsed paths: ${paths[*]}" >&2
+  die "Could not determine Odoo source directory from config file $config_file (no path ending with /addons in addons_path). Set ODOO_SOURCE_DIR or add the Odoo addons path (e.g. /path/to/odoo16/addons) to addons_path."
 }
 
 # --- Function to process workspace update ---

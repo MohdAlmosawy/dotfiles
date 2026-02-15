@@ -375,7 +375,7 @@ def process_file(path: str, defaults: Dict[str, object], dry_run: bool = False, 
             if a in g and b in g:
                 return True
         return False
-    for key, block_lines in blocks:
+    for i, (key, block_lines) in enumerate(blocks):
         # attach preceding comments (if any)
         pre = comments_before.get(key, [])
         if pre:

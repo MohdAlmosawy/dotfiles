@@ -10,10 +10,26 @@
 	helper = store
 [pull]
 	rebase = true
+	ff = only
 [rebase]
 	autoStash = true
 	updateRefs = true
 [fetch]
 	prune = true
 [branch]
-	autoSetupRebase = always
+	autoSetupRebase = never
+[user]
+	name = MohdAlmosawy
+	email = mohd.s.aqeel@gmail.com
+[rerere]
+	enabled = true
+[push]
+	default = simple
+[diff]
+	colorMoved = zebra
+[init]
+	defaultBranch = remote_team_master
+[branch "remote_team_testing"]
+	rebase = false
+[branch "remote_team_master"]
+	rebase = false

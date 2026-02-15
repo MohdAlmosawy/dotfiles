@@ -64,8 +64,18 @@ while [ $i -le $# ]; do
       fi
       ((i++))
       ;;
+    -h|--help)
+      echo "Usage: create-odoo-workspace.sh [options] <path-to-module1> [<path-to-module2> ...] [odoo-version|config-path]
+
+Options:
+  -h, --help            Show this help message
+  -t, --transitive [N]  Include transitive dependencies. N=1 (default): direct deps only.
+                        N=2: direct + their deps, N=3: three layers, etc.
+                        Omit N for unlimited depth."
+      exit 0
+      ;;
     -*)
-      die "Unknown option: $arg. Use -t/--transitive [N] for transitive deps (N=1 direct only, N=2 two layers, etc.; omit N for unlimited)"
+      die "Unknown option: $arg. Use -h/--help for usage."
       ;;
     *)
       ARGS+=("$arg")
@@ -75,14 +85,7 @@ while [ $i -le $# ]; do
 done
 
 if [ ${#ARGS[@]} -lt 1 ]; then
-  die "Please provide at least one module path
-
-Usage: create-odoo-workspace.sh [options] <path-to-module1> [<path-to-module2> ...] [odoo-version|config-path]
-
-Options:
-  -t, --transitive [N]  Include transitive dependencies. N=1 (default): direct deps only.
-                        N=2: direct + their deps, N=3: three layers, etc.
-                        Omit N for unlimited depth."
+  die "Please provide at least one module path. Use -h/--help for usage."
 fi
 
 LAST_ARG="${ARGS[-1]}"

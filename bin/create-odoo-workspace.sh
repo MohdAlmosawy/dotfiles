@@ -15,6 +15,27 @@ trap '
   done
 ' EXIT
 
+# --- Locate dotfiles scripts (for shared odoo_manifest.py) ---
+resolve_script_path() {
+  local f="$1"
+  if command -v readlink >/dev/null 2>&1; then
+    readlink -f "$f"
+    return
+  fi
+  while [ -L "$f" ]; do
+    local target
+    target=$(readlink "$f")
+    case "$target" in
+      /*) f="$target" ;;
+      *) f="$(dirname "$f")/$target" ;;
+    esac
+  done
+  echo "$f"
+}
+SCRIPT_PATH="$(resolve_script_path "${BASH_SOURCE[0]}")"
+DOTFILES_SCRIPTS="$(cd "$(dirname "$SCRIPT_PATH")/../scripts" && pwd)"
+[[ -f "$DOTFILES_SCRIPTS/odoo_manifest.py" ]] || die "Missing $DOTFILES_SCRIPTS/odoo_manifest.py (re-run setup.sh?)"
+
 # --- OS detection for user settings path ---
 get_user_settings_files() {
   local files=()
@@ -363,7 +384,11 @@ process_workspace_update() {
 
   if python3 - <<EOF
 import json, sys, os
+sys.path.insert(0, "$DOTFILES_SCRIPTS")
+from odoo_manifest import parse_manifest_file
+
 manifest_files = $manifest_files_pylist
+primary_manifests = set(manifest_files)
 module_names = $module_names_pylist
 module_paths = $module_paths_pylist
 odoo_addons_path = "$odoo_addons_path"
@@ -373,16 +398,15 @@ transitive_depth = $TRANSITIVE_DEPTH
 
 def get_manifest_deps(files):
     deps = set()
-    import ast
+    failed = []
     for mf in files:
         try:
-            with open(mf, 'r') as f:
-                content = f.read()
-                manifest = ast.literal_eval(content)
-                deps.update(manifest.get('depends', []))
+            manifest = parse_manifest_file(mf)
+            deps.update(manifest.get('depends', []) or [])
         except Exception as e:
+            failed.append(mf)
             print(f"Error reading manifest {mf}: {e}", file=sys.stderr)
-    return deps
+    return deps, failed
 
 def read_workspace():
     try:
@@ -405,7 +429,10 @@ def find_module_path(module_name, addon_paths):
 def get_transitive_deps(manifest_files, module_names, addon_paths, odoo_addons_path, max_depth):
     """Collect deps up to max_depth layers. max_depth=1: direct only, 2: +1 layer, 0: unlimited."""
     all_deps = set()
-    current_layer = get_manifest_deps(manifest_files) - set(module_names)
+    parse_failures = []
+    current_layer, failed = get_manifest_deps(manifest_files)
+    parse_failures.extend(failed)
+    current_layer -= set(module_names)
     all_deps.update(current_layer)
     depth = 1
     while max_depth == 0 or depth < max_depth:
@@ -421,16 +448,26 @@ def get_transitive_deps(manifest_files, module_names, addon_paths, odoo_addons_p
                         break
         if not next_manifests:
             break
-        next_deps = get_manifest_deps(next_manifests) - set(module_names) - all_deps
+        next_deps, failed = get_manifest_deps(next_manifests)
+        parse_failures.extend(failed)
+        next_deps -= set(module_names) | all_deps
         if not next_deps:
             break
         all_deps.update(next_deps)
         current_layer = next_deps
         depth += 1
-    return all_deps
+    return all_deps, parse_failures
 
 addon_paths = $addon_paths_str
-deps = get_transitive_deps(manifest_files, module_names, addon_paths, odoo_addons_path, transitive_depth)
+deps, parse_failures = get_transitive_deps(manifest_files, module_names, addon_paths, odoo_addons_path, transitive_depth)
+if parse_failures:
+    primary_failed = [p for p in parse_failures if p in primary_manifests]
+    if primary_failed:
+        print("Fatal: could not parse manifest(s) for workspace module(s). "
+              "Fix JSON-style true/false/null (use True/False/None) or run: update-manifest <path>",
+              file=sys.stderr)
+        sys.exit(1)
+    print(f"Warning: skipped {len(parse_failures)} dependency manifest(s) due to parse errors", file=sys.stderr)
 ws = read_workspace()
 if not ws:
     print("Error: Could not read workspace file", file=sys.stderr)

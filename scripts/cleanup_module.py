@@ -17,20 +17,14 @@ import argparse
 import ast
 import os
 import shutil
+import sys
 from pathlib import Path
 from typing import Optional
 
-
-def find_manifest_dict_node(tree: ast.Module) -> Optional[ast.AST]:
-    """Return the AST node of the first top-level dict expression or assignment's value that is a Dict."""
-    for node in tree.body:
-        # bare dict as an Expr (common in __manifest__.py)
-        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Dict):
-            return node.value
-        # assignment to a name: NAME = { ... }
-        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict):
-            return node.value
-    return None
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPT_DIR)
+from odoo_manifest import find_manifest_dict_node, parse_manifest_dict_node
 
 
 def read_file(path: str) -> str:
@@ -71,11 +65,10 @@ def cleanup_manifest(manifest_path: str, dry_run: bool = False) -> bool:
         print(f"No top-level manifest dict found in {manifest_path}")
         return False
 
-    # Safely evaluate the dict node
     try:
-        manifest_dict = ast.literal_eval(dict_node)
+        manifest_dict = parse_manifest_dict_node(src, dict_node, manifest_path)
     except Exception as exc:
-        print(f"Skipping {manifest_path}: could not literal_eval manifest dict: {exc}")
+        print(f"Skipping {manifest_path}: could not parse manifest dict: {exc}")
         return False
 
     if not isinstance(manifest_dict, dict):
@@ -131,7 +124,7 @@ def cleanup_manifest(manifest_path: str, dry_run: bool = False) -> bool:
                     lines.append(f'{indent}    "{escaped_item}",')
                 lines.append(f'{indent}],')
         elif isinstance(value, bool):
-            lines.append(f'{indent}"{key}": {str(value).lower()},')
+            lines.append(f'{indent}"{key}": {repr(value)},')
         else:
             lines.append(f'{indent}"{key}": {repr(value)},')
         return lines

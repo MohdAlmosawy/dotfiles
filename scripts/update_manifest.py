@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import ast
 import os
+import sys
 import textwrap
 import pprint
 import io
@@ -24,6 +25,11 @@ import tokenize
 from typing import List
 import re
 from typing import Dict, Optional, Tuple
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPT_DIR)
+from odoo_manifest import find_manifest_dict_node, parse_manifest_dict_node
 
 
 DEFAULT_AUTHOR_NAME = "Sayed Mohammed Aqeel Ebrahim"
@@ -37,21 +43,6 @@ DEFAULT_WEBSITE = "https://sayedmohd.com/"
 def build_version_from_major(major: int) -> str:
     # simple convention: <major>.0.1.0.0
     return f"{major}.0.1.0.0"
-
-
-def find_manifest_nodes(tree: ast.Module) -> Optional[ast.AST]:
-    """Return the AST node of the first top-level dict expression or assignment's value that is a Dict.
-
-    Supports both a bare dict (Expression -> Dict) and assignment like: manifest = { ... }
-    """
-    for node in tree.body:
-        # bare dict as an Expr (common in __manifest__.py)
-        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Dict):
-            return node.value
-        # assignment to a name: NAME = { ... }
-        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict):
-            return node.value
-    return None
 
 
 def read_file(path: str) -> str:
@@ -224,20 +215,19 @@ def process_file(path: str, defaults: Dict[str, object], dry_run: bool = False, 
         print(f"Skipping {path}: parse error: {exc}")
         return False
 
-    dict_node = find_manifest_nodes(tree)
+    dict_node = find_manifest_dict_node(tree)
     if dict_node is None:
         print(f"No top-level manifest dict found in {path}")
         return False
 
-    # Safely evaluate the dict node
     try:
-        current = ast.literal_eval(dict_node)
+        current = parse_manifest_dict_node(src, dict_node, path)
     except Exception as exc:
-        print(f"Skipping {path}: could not literal_eval manifest dict: {exc}")
+        print(f"Skipping {path}: could not parse manifest dict: {exc}")
         return False
 
     if debug:
-        print("--- parsed manifest dict (ast.literal_eval) ---")
+        print("--- parsed manifest dict ---")
         pprint.pprint(current)
         print("--------------------------------------------")
 

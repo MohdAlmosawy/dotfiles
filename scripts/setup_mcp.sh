@@ -193,7 +193,13 @@ if [ "$SETUP_ODOO" = true ]; then
         VIRTUAL_ENV="$input_venv2"
     fi
 
-    PYTHONPATH="$HOME/mcp-odoo:$VIRTUAL_ENV/lib/python3.12/site-packages"
+    # mcp-odoo uses a src/ layout, so include src explicitly.
+    PY_SITE_PACKAGES=$("$VIRTUAL_ENV/bin/python3" -c "import sysconfig; print(sysconfig.get_paths().get('purelib', ''))" 2>/dev/null || true)
+    if [ -z "$PY_SITE_PACKAGES" ]; then
+        echo "Error: could not detect site-packages path for $VIRTUAL_ENV"
+        exit 1
+    fi
+    PYTHONPATH="$HOME/mcp-odoo/src:$PY_SITE_PACKAGES"
     PATH_VAL="$VIRTUAL_ENV/bin:$PATH"
 
     # --- MCP-Odoo setup ---
@@ -215,12 +221,24 @@ if [ "$SETUP_ODOO" = true ]; then
         echo "mcp-odoo repository already exists at $MCP_ODOO_DIR"
     fi
 
+    # Ensure modern MCP package that provides mcp.server.fastmcp.
+    MCP_PIP_SPEC="${MCP_PIP_SPEC:-mcp>=1.24.0}"
+    NEED_MCP_PIN_INSTALL=0
     if ! pip show mcp &>/dev/null; then
-        echo "Installing base mcp package..."
-        command pip install mcp
-        if [ $? -ne 0 ]; then echo "pip install mcp failed"; exit 1; fi
+        NEED_MCP_PIN_INSTALL=1
     else
-        echo "Base mcp package already installed."
+        MCP_MAJOR_VERSION=$(python3 -c "import importlib.metadata as md; print(md.version('mcp').split('.')[0])" 2>/dev/null || echo "0")
+        if [ "$MCP_MAJOR_VERSION" -lt 1 ]; then
+            echo "Installed mcp major version is $MCP_MAJOR_VERSION; enforcing $MCP_PIP_SPEC for compatibility."
+            NEED_MCP_PIN_INSTALL=1
+        else
+            echo "Base mcp package already installed and compatible."
+        fi
+    fi
+    if [ "$NEED_MCP_PIN_INSTALL" -eq 1 ]; then
+        echo "Installing base mcp package ($MCP_PIP_SPEC)..."
+        command pip install --upgrade --force-reinstall "$MCP_PIP_SPEC"
+        if [ $? -ne 0 ]; then echo "pip install mcp failed"; exit 1; fi
     fi
 
     cd "$MCP_ODOO_DIR"
@@ -239,7 +257,8 @@ if [ "$SETUP_ODOO" = true ]; then
     command pip show odoo-mcp || echo "odoo-mcp package not found."
 
     echo "Testing odoo-mcp CLI:"
-    odoo-mcp --help || echo "odoo-mcp CLI test failed."
+    # Suppress stderr since odoo-mcp will fail without config (expected at this stage)
+    odoo-mcp --help 2>/dev/null || echo "odoo-mcp CLI test failed (expected - config not set yet)."
 
     cd - > /dev/null
 

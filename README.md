@@ -1,44 +1,49 @@
 # Dotfiles — concise usage
 
-This is my personal collection of **dotfiles and helper scripts**, used to quickly bootstrap my development machines and work with **Cursor’s MCP (multi-code-project)** setup for Odoo development.
+This is my personal collection of **dotfiles and helper scripts**, used to quickly bootstrap my development machines for **Odoo development** with Cursor (MCP, agent skills) and VS Code-like editors.
 
 It’s intentionally lightweight: a single bootstrap (`setup.sh`), a few small helpers in `bin/`, and some config templates in `templates/`.
-
-> The only special piece here is `create-odoo-workspace.sh` — everything else is standard dotfile linking and MCP templating.
 
 ---
 
 ## ⚡ Quick install
 
 ```zsh
-git clone git@github.com:MohdAlmosawy/dotfiles.git ~/dotfiles
+git clone --recurse-submodules git@github.com:MohdAlmosawy/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 chmod +x setup.sh
-./setup.sh       # links dotfiles, installs ~/bin helpers, optional Cursor/Antigravity/MCP/Odoo helpers
+./setup.sh       # links dotfiles, installs ~/bin helpers, optional Cursor/MCP/skills/Odoo helpers
 ```
+
+If you already cloned without submodules: `git submodule update --init vendor/skills`
 
 ---
 
 ## 🧩 Modular setup
 
-Setup is split into focused modules under `modules/`. Use `DOTFILES_NONINTERACTIVE=1` for automation; other flags like `SETUP_GIT`, `INSTALL_CURSOR`, `INSTALL_ANTIGRAVITY` control optional steps.
+Setup is split into focused modules under `modules/`. Use `DOTFILES_NONINTERACTIVE=1` for automation; flags like `SETUP_GIT`, `INSTALL_CURSOR`, `SETUP_MCP`, `SETUP_SKILLS`, and `INSTALL_ANTIGRAVITY` control optional steps.
 
-## 🧠 Agent skills
-
-Forked from [mattpocock/skills](https://github.com/mattpocock/skills) as a git submodule at `vendor/skills` ([MohdAlmosawy/skills](https://github.com/MohdAlmosawy/skills)).
+Example (install everything non-interactively):
 
 ```zsh
-# Fresh clone (include submodule)
-git clone --recurse-submodules git@github.com:MohdAlmosawy/dotfiles.git ~/dotfiles
-
-# Existing clone
-git submodule update --init vendor/skills
-./scripts/setup_skills.sh
+DOTFILES_NONINTERACTIVE=1 SETUP_MCP=1 SETUP_SKILLS=1 INSTALL_CURSOR=1 ./setup.sh
 ```
 
-`setup.sh` can install skills into Cursor interactively, or non-interactively with `SETUP_SKILLS=1`.
+## 🧠 Agent skills (optional)
 
-Edit `templates/skills.list` to change which skills are installed. Merge upstream changes with `sync-skills-upstream`.
+Cursor agent skills live in a forked submodule at `vendor/skills` ([MohdAlmosawy/skills](https://github.com/MohdAlmosawy/skills), based on [mattpocock/skills](https://github.com/mattpocock/skills)). Skip this section if you don't use Cursor skills.
+
+**Setup** — during `./setup.sh`, answer yes when prompted, or run manually:
+
+```zsh
+./scripts/setup_skills.sh          # installs skills listed in templates/skills.list into Cursor
+```
+
+Skills are copied to `~/.agents/skills/`. Restart Cursor after installing. Verify with `npx skills list -g`.
+
+**Use in Cursor** — type `/` in chat to invoke user skills (e.g. `/grill-me`, `/to-prd`). Model-invoked skills (e.g. `tdd`, `diagnosing-bugs`) are picked up automatically when relevant. Run `/setup-matt-pocock-skills` once per project repo to configure issue tracker and domain docs.
+
+**Customize** — edit `templates/skills.list` and rerun `./scripts/setup_skills.sh`. Pull upstream changes with `sync-skills-upstream`.
 
 ---
 
@@ -68,11 +73,9 @@ Usage: `create-odoo-workspace.sh <path-to-module> [odoo-version|config-path]`
 
 ## 🗒️ Notes & tips
 
-- Workspaces and `.vscode` settings are **VS Code-like**.  
-  Only `mcp.json` is Cursor-specific.
+- Workspaces and `.vscode` settings are **VS Code-like**. Cursor-specific pieces are `~/.cursor/mcp.json` and agent skills under `~/.agents/skills/`.
 - Add `~/.cursor/mcp.json` and any local `.vscode/launch.json` to your personal `.gitignore` to avoid committing secrets.
 - This repo stays **minimal by design** — no shells, themes, or frameworks; just portable scripts I can trust anywhere.
-- The only custom helper worth noting is `create-odoo-workspace.sh`, which scaffolds Odoo workspaces for VS Code-like editors.
 
 ---
 

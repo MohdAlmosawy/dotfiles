@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Merge upstream mattpocock/skills into the vendor/skills fork submodule.
+set -euo pipefail
+
+DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SKILLS_DIR="$DOTFILES_DIR/vendor/skills"
+UPSTREAM_URL="${SKILLS_UPSTREAM_URL:-https://github.com/mattpocock/skills.git}"
+UPSTREAM_BRANCH="${SKILLS_UPSTREAM_BRANCH:-main}"
+
+usage() {
+  cat <<'EOF'
+Usage: sync-skills-upstream
+
+Fetch mattpocock/skills and merge upstream/main into your fork submodule.
+
+After merging, push from vendor/skills, then bump the submodule pointer in dotfiles:
+  cd vendor/skills && git push origin main
+  cd ../.. && git add vendor/skills && git commit -m "Bump skills submodule"
+EOF
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+[[ -d "$SKILLS_DIR/.git" ]] || { echo "ERROR: $SKILLS_DIR is missing. Run: git submodule update --init vendor/skills"; exit 1; }
+
+echo "→ Ensuring vendor/skills submodule is current…"
+git -C "$DOTFILES_DIR" submodule update --init vendor/skills
+
+if ! git -C "$SKILLS_DIR" remote get-url upstream >/dev/null 2>&1; then
+  echo "→ Adding upstream remote…"
+  git -C "$SKILLS_DIR" remote add upstream "$UPSTREAM_URL"
+fi
+
+echo "→ Fetching upstream ($UPSTREAM_BRANCH)…"
+git -C "$SKILLS_DIR" fetch upstream "$UPSTREAM_BRANCH"
+
+current_branch="$(git -C "$SKILLS_DIR" branch --show-current)"
+if [[ -z "$current_branch" ]]; then
+  echo "ERROR: vendor/skills is in detached HEAD. Checkout main first."
+  exit 1
+fi
+
+echo "→ Merging upstream/$UPSTREAM_BRANCH into $current_branch…"
+git -C "$SKILLS_DIR" merge "upstream/$UPSTREAM_BRANCH"
+
+echo "✔ Upstream merged into vendor/skills."
+echo "Next:"
+echo "  1) Resolve conflicts in vendor/skills if any"
+echo "  2) git -C vendor/skills push origin $current_branch"
+echo "  3) git add vendor/skills && git commit -m 'Bump skills submodule'"

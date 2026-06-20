@@ -23,6 +23,25 @@ chmod +x setup.sh
 
 Setup is split into focused modules under `modules/`. Use `DOTFILES_NONINTERACTIVE=1` for automation; other flags like `SETUP_GIT`, `INSTALL_CURSOR`, `INSTALL_ANTIGRAVITY` control optional steps.
 
+## 🧠 Agent skills
+
+Forked from [mattpocock/skills](https://github.com/mattpocock/skills) as a git submodule at `vendor/skills` ([MohdAlmosawy/skills](https://github.com/MohdAlmosawy/skills)).
+
+```zsh
+# Fresh clone (include submodule)
+git clone --recurse-submodules git@github.com:MohdAlmosawy/dotfiles.git ~/dotfiles
+
+# Existing clone
+git submodule update --init vendor/skills
+./scripts/setup_skills.sh
+```
+
+`setup.sh` can install skills into Cursor interactively, or non-interactively with `SETUP_SKILLS=1`.
+
+Edit `templates/skills.list` to change which skills are installed. Merge upstream changes with `sync-skills-upstream`.
+
+---
+
 ## ⚙️ MCP and templates
 
 `scripts/setup_mcp.sh` helps generate `~/.cursor/mcp.json` from `templates/mcp.json.template` and installs `mcp-odoo` into your virtualenv.

@@ -18,6 +18,7 @@ load_module path_and_bin
 load_module editors
 load_module antigravity
 load_module mcp
+load_module skills
 load_module odoo
 
 # Explicit orchestration order, mirroring the original setup steps.
@@ -28,6 +29,7 @@ SETUP_SEQUENCE=(
   cursor_maybe_install_run
   antigravity_maybe_install_run
   mcp_setup_run
+  skills_setup_run
   refresh_path_run
   odoo_setup_run
 )

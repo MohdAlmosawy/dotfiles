@@ -1,0 +1,15 @@
+# Default skills installed by scripts/setup_skills.sh
+# One skill name per line. Lines starting with # are ignored.
+# Override entirely with DOTFILES_SKILLS="skill-a skill-b"
+
+setup-matt-pocock-skills
+grill-with-docs
+grill-me
+tdd
+diagnosing-bugs
+to-prd
+to-issues
+triage
+codebase-design
+domain-modeling
+handoff

@@ -14,9 +14,9 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/../templates/mcp.json.template"
 
 # Determine which IDE configs to write:
-# - DOTFILES_MCP_IDES can be a space- or comma-separated list, e.g. "cursor antigravity"
-# - Defaults to "cursor" for backward compatibility
-RAW_IDES="${DOTFILES_MCP_IDES:-cursor}"
+# - DOTFILES_MCP_IDES can be a space- or comma-separated list, e.g. "vscode antigravity"
+# - Defaults to "vscode" so the user-level VS Code MCP config is created
+RAW_IDES="${DOTFILES_MCP_IDES:-vscode}"
 MCP_IDES=()
 CONFIG_FILES=()
 
@@ -24,16 +24,16 @@ IFS=', ' read -r -a MCP_IDES <<< "$RAW_IDES"
 
 for ide in "${MCP_IDES[@]}"; do
   case "$ide" in
-    cursor)
-      CONFIG_FILES+=("$HOME/.cursor/mcp.json")
-      ;;
-    antigravity)
-      # Antigravity expects mcp_config.json under its Gemini config directory
-      CONFIG_FILES+=("$HOME/.gemini/antigravity/mcp_config.json")
-      ;;
     vscode)
-      # VS Code expects mcp.json in the User directory
-      CONFIG_FILES+=("$HOME/.vscode/mcp.json")
+            # VS Code expects mcp.json in the User directory
+            CONFIG_FILES+=("$HOME/.config/Code/User/mcp.json")
+            ;;
+        cursor)
+            CONFIG_FILES+=("$HOME/.cursor/mcp.json")
+            ;;
+        antigravity)
+            # Antigravity expects mcp_config.json under its Gemini config directory
+            CONFIG_FILES+=("$HOME/.gemini/antigravity/mcp_config.json")
       ;;
     "" )
       ;;
@@ -45,7 +45,7 @@ done
 
 if [ ${#CONFIG_FILES[@]} -eq 0 ]; then
   echo "No valid IDE targets specified in DOTFILES_MCP_IDES ('$RAW_IDES')."
-  echo "Supported values: cursor, antigravity, vscode"
+    echo "Supported values: vscode, cursor, antigravity"
   exit 1
 fi
 
@@ -58,7 +58,7 @@ fi
 
 # --- Help/usage switch ---
 if (( $# > 0 )) && [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
-  echo "\nUsage: $0\n\nThis script sets up MCP-Odoo and generates a config file.\n- Detects Odoo config and Python venv\n- Clones mcp-odoo repo\n- Installs dependencies\n- Prompts for all required config values\n- Writes ~/.cursor/mcp.json\n\nRun from any directory. Requires git, python3, pip, jq.\nTemplate directory is expected to be one level up from this script.\nOdoo config must be a standard .conf file.\n\nWARNING: Default Odoo credentials are 'admin'/'admin'. For security, use strong credentials!\n"
+    echo "\nUsage: $0\n\nThis script sets up the Odoo MCP server and generates a config file.\n- Detects Odoo config and Python venv\n- Clones mcp-odoo repo\n- Installs dependencies\n- Prompts for the required config values\n- Writes ~/.config/Code/User/mcp.json for VS Code by default\n\nRun from any directory. Requires git, python3, pip, jq.\nTemplate directory is expected to be one level up from this script.\nOdoo config must be a standard .conf file.\n\nWARNING: Default Odoo credentials are 'admin'/'admin'. For security, use strong credentials!\n"
   exit 0
 fi
 
@@ -288,16 +288,12 @@ if [ "$SETUP_ODOO" = true ]; then
         --arg username "$ODOO_USERNAME" \
         --arg password "$ODOO_PASSWORD" \
         --arg venv "$VIRTUAL_ENV" \
-        --arg pythonpath "$PYTHONPATH" \
-        --arg path "$PATH_VAL" \
         '.env.ODOO_URL = $url |
          .env.ODOO_DB = $db |
          .env.ODOO_USERNAME = $username |
          .env.ODOO_PASSWORD = $password |
-         .env.VIRTUAL_ENV = $venv |
-         .env.PYTHONPATH = $pythonpath |
-         .env.PATH = $path |
-         .command = ($venv + "/bin/python3")')
+         .command = ($venv + "/bin/python") |
+         .args = ["-m", "odoo_mcp"]')
     
     # Add Odoo server to config
     template_config=$(echo "$template_config" | jq ".mcpServers.odoo = $odoo_config")

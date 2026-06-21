@@ -139,5 +139,6 @@ tasks/
 # (Optionally) Ignore README if you don't want it tracked globally
 # README.md
 
-# Ignore Cursor MCP config with secrets
+# Ignore MCP config files with secrets
 .cursor/mcp.json
+/.config/Code/User/mcp.json

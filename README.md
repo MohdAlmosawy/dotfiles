@@ -49,8 +49,8 @@ Skills are copied to `~/.agents/skills/`. Restart Cursor after installing. Verif
 
 ## ⚙️ MCP and templates
 
-`scripts/setup_mcp.sh` helps generate `~/.cursor/mcp.json` from `templates/mcp.json.template` and installs `mcp-odoo` into your virtualenv.
-Run it only if you use Cursor’s MCP feature — otherwise you can ignore this part.
+`scripts/setup_mcp.sh` helps generate `~/.config/Code/User/mcp.json` from `templates/mcp.json.template` and installs `mcp-odoo` into your virtualenv.
+Run it if you want the user-level VS Code MCP config for Odoo.
 
 ---
 

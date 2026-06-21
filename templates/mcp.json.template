@@ -1,19 +1,13 @@
 {
   "mcpServers": {
     "odoo": {
-      "command": "<VIRTUAL_ENV>/bin/python3",
-      "args": [
-        "-m",
-        "odoo_mcp"
-      ],
+      "command": "<VIRTUAL_ENV>/bin/python",
+      "args": ["-m", "odoo_mcp"],
       "env": {
         "ODOO_URL": "<ODOO_URL>",
         "ODOO_DB": "<ODOO_DB>",
         "ODOO_USERNAME": "<ODOO_USERNAME>",
-        "ODOO_PASSWORD": "<ODOO_PASSWORD>",
-        "VIRTUAL_ENV": "<VIRTUAL_ENV>",
-        "PYTHONPATH": "<PYTHONPATH>",
-        "PATH": "<PATH>"
+        "ODOO_PASSWORD": "<ODOO_PASSWORD>"
       }
     },
     "taskmaster-ai": {

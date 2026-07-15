@@ -1,22 +1,28 @@
 #!/usr/bin/env bash
-# Install agent skills from the dotfiles vendor/skills submodule into Cursor.
+# Install vendored and personal agent skills into Cursor.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 DOTFILES_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SKILLS_REPO="$DOTFILES_DIR/vendor/skills"
 SKILLS_LIST_FILE="$DOTFILES_DIR/templates/skills.list"
+PERSONAL_SKILLS_DIR="$DOTFILES_DIR/skills"
 
 usage() {
   cat <<'EOF'
-Usage: setup_skills.sh
+Usage: setup_skills.sh [--personal-only]
 
-Sync vendor/skills (git submodule) and install selected skills into Cursor.
+Sync vendor/skills, install selected shared skills, and link personal skills
+from dotfiles/skills into ~/.cursor/skills.
+
+Options:
+  --personal-only       Link personal skills without requiring Node.js
 
 Environment:
   DOTFILES_SKILLS       Space-separated skill names (overrides templates/skills.list)
   DOTFILES_SKILLS_AGENT Target agent for skills CLI (default: cursor)
   DOTFILES_SKILLS_GLOBAL Install globally (default: 1). Set to 0 for project-level.
+  DOTFILES_CURSOR_SKILLS_DIR Personal skills target (default: ~/.cursor/skills)
 
 Examples:
   ./scripts/setup_skills.sh
@@ -102,8 +108,47 @@ install_skills() {
     -y
 }
 
-ensure_git_submodule
-ensure_npx
-install_skills
+install_personal_skills() {
+  local target_root="${DOTFILES_CURSOR_SKILLS_DIR:-$HOME/.cursor/skills}"
+  local skill_dir target backup
+  local -a skill_dirs=()
+
+  [[ -d "$PERSONAL_SKILLS_DIR" ]] || return
+
+  mkdir -p "$target_root"
+  shopt -s nullglob
+  skill_dirs=("$PERSONAL_SKILLS_DIR"/*)
+  shopt -u nullglob
+
+  for skill_dir in "${skill_dirs[@]}"; do
+    [[ -d "$skill_dir" && -f "$skill_dir/SKILL.md" ]] || continue
+    target="$target_root/$(basename "$skill_dir")"
+
+    if [[ -L "$target" && "$(readlink "$target")" == "$skill_dir" ]]; then
+      echo "  • already linked: $target"
+      continue
+    fi
+
+    if [[ -L "$target" ]]; then
+      rm "$target"
+    elif [[ -e "$target" ]]; then
+      backup="$target.bak.$(date +%s)"
+      echo "  • backing up $target → $backup"
+      mv "$target" "$backup"
+    fi
+
+    ln -s "$skill_dir" "$target"
+    echo "  → linked $skill_dir → $target"
+  done
+}
+
+if [[ "${1:-}" == "--personal-only" ]]; then
+  install_personal_skills
+else
+  ensure_git_submodule
+  ensure_npx
+  install_skills
+  install_personal_skills
+fi
 
 echo "✔ Agent skills installed."

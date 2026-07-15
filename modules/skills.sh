@@ -12,7 +12,7 @@ set -euo pipefail
 #   DOTFILES_DIR
 #
 # SIDE EFFECTS:
-#   May run scripts/setup_skills.sh to sync vendor/skills and install into Cursor
+#   May install vendored skills and link personal skills into Cursor
 
 skills_setup_run() {
   if [[ "${DOTFILES_NONINTERACTIVE:-0}" == "1" ]]; then
@@ -24,7 +24,7 @@ skills_setup_run() {
     return
   fi
 
-  read -rp "Set up agent skills (vendor/skills → Cursor)? [y/N]: " setup_skills || true
+  read -rp "Set up agent skills (vendored + personal → Cursor)? [y/N]: " setup_skills || true
   if [[ "$setup_skills" =~ ^[Yy]$ ]]; then
     "$DOTFILES_DIR/scripts/setup_skills.sh"
   else

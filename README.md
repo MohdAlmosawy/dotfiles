@@ -31,19 +31,20 @@ DOTFILES_NONINTERACTIVE=1 SETUP_MCP=1 SETUP_SKILLS=1 INSTALL_CURSOR=1 ./setup.sh
 
 ## 🧠 Agent skills (optional)
 
-Cursor agent skills live in a forked submodule at `vendor/skills` ([MohdAlmosawy/skills](https://github.com/MohdAlmosawy/skills), based on [mattpocock/skills](https://github.com/mattpocock/skills)). Skip this section if you don't use Cursor skills.
+Shared Cursor agent skills live in a forked submodule at `vendor/skills` ([MohdAlmosawy/skills](https://github.com/MohdAlmosawy/skills), based on [mattpocock/skills](https://github.com/mattpocock/skills)). Personal skills maintained by these dotfiles live in `skills/`.
 
 **Setup** — during `./setup.sh`, answer yes when prompted, or run manually:
 
 ```zsh
-./scripts/setup_skills.sh          # installs skills listed in templates/skills.list into Cursor
+./scripts/setup_skills.sh          # installs shared skills and links personal skills
+./scripts/setup_skills.sh --personal-only  # links personal skills without Node.js
 ```
 
-Skills are copied to `~/.agents/skills/`. Restart Cursor after installing. Verify with `npx skills list -g`.
+Shared skills are installed globally by the skills CLI. Personal skills are linked from `skills/<name>/` to `~/.cursor/skills/<name>/`; for example, `skills/commit-comment` becomes available as `/commit-comment`. Existing personal skill directories are backed up before being replaced. Restart Cursor after installing. Verify shared skills with `npx skills list -g`.
 
 **Use in Cursor** — type `/` in chat to invoke user skills (e.g. `/grill-me`, `/to-prd`). Model-invoked skills (e.g. `tdd`, `diagnosing-bugs`) are picked up automatically when relevant. Run `/setup-matt-pocock-skills` once per project repo to configure issue tracker and domain docs.
 
-**Customize** — edit `templates/skills.list` and rerun `./scripts/setup_skills.sh`. Pull upstream changes with `sync-skills-upstream`.
+**Customize** — edit `templates/skills.list` for shared skills, or add personal skills under `skills/<name>/SKILL.md`, then rerun `./scripts/setup_skills.sh`. Pull upstream changes with `sync-skills-upstream`.
 
 ---
 

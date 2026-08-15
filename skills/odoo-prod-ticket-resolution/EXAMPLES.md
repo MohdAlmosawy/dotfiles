@@ -122,3 +122,22 @@ Path:
 4. Enforce the configured type/issue invariant at the source ticket while preserving downstream routing.
 5. Keep existing records unchanged when the approved scope is code-only.
 6. Treat staging or a scheduled deployment as pending; close **Fixed / Bug** only after production verification.
+
+## AI suggested Referred; human completed the audit as Fixed
+
+Evidence:
+
+- Ticket asks for a one-off identification/report across sales orders and quotations.
+- AI prefilled resolution as **Referred** / custom report, category Other.
+- Human (with MCP dig) delivered the matching records and closed **Fixed** / Other.
+- Rate AI Resolution wizard opens after Mark as Solved.
+
+Path:
+
+1. Deliver the identification list; close Fixed / Other with copy-ready Mark as Solved values.
+2. After the user confirms Mark as Solved, rate the **Odoo AI suggestion**, not the Cursor dig.
+3. Stars **3**, tags **Useful**, **Incomplete**, **Wrong Resolution**.
+4. Note: AI classified non-bug audit correctly but wrong outcome and missing deliverable pairs.
+5. User submits the wizard; review pins `ai.agent.version` automatically.
+
+See [AI-RATING.md](AI-RATING.md).

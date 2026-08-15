@@ -69,3 +69,7 @@ For code fixes:
 - Local implementation, commit, push, staging deployment, or a scheduled production deployment is not **Fixed** in production.
 - Use **Fixed / Bug** only after production deployment and verification of the original workflow.
 - Before that point, provide closure text only as a clearly labeled draft for use after verification.
+
+## After Mark as Solved — AI rating
+
+If Mark as Solved was AI-suggested and the **Rate AI Resolution** wizard opens, continue with [AI-RATING.md](AI-RATING.md) in the same conversation turn after the user reports the close. Closure text and AI rating are separate: do not put stars inside the Mark as Solved block.

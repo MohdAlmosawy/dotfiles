@@ -1,12 +1,12 @@
 ---
 name: odoo-prod-ticket-resolution
-description: Investigates and resolves Odoo production helpdesk tickets from an ID or URL, including duplicates, stale reports, data corrections, configuration, and code defects. Uses MCP and the codebase, gates mutations by approval, tracks code through production verification, returns Mark as Solved values when closure-ready, and after the user closes an AI-suggested resolution provides Rate AI Resolution stars/tags/note. Use only when explicitly requested for production ticket investigation or resolution.
+description: Investigates and resolves Odoo production helpdesk tickets from an ID or URL, including duplicates, stale reports, data corrections, configuration, and code defects. Uses MCP and the codebase, gates mutations by approval, tracks code through production verification, and automatically returns Mark as Solved values when closure-ready. Use only when explicitly requested for production ticket investigation or resolution.
 disable-model-invocation: true
 ---
 
 # Odoo Production Ticket Resolution
 
-Resolve production tickets through evidence, triage, approval, safe execution, independent verification, accurate closure, and AI resolution rating when the Rate AI Resolution wizard applies.
+Resolve production tickets through evidence, triage, approval, safe execution, independent verification, and accurate closure.
 
 ## Safety contract
 
@@ -18,6 +18,10 @@ Resolve production tickets through evidence, triage, approval, safe execution, i
 - Redact secrets and unnecessary personal or customer data.
 
 ## Workflow
+
+### 0. Suggest a title
+
+After identifying the ticket, immediately suggest a short descriptive title (max 8 words) for this investigation session based on the ticket subject, affected model, and symptom. Present it at the top of the first response so the user can rename the chat.
 
 ### 1. Identify and read the ticket
 
@@ -34,8 +38,6 @@ Discover MCP schemas before calling tools. Read:
 Use model metadata and relationship inspection instead of assuming custom field names. Read escalation records themselves even when a displayed escalation count is zero; routing logs and technical escalations may use different counters.
 
 Build a short evidence timeline. Treat the ticket statement as historical evidence, not proof that production still has the same state.
-
-As soon as the ticket id and subject are known, include a one-line **Chat title** suggestion in that same response so the user can rename the Cursor conversation manually. Agents cannot rename chats. Follow the Chat title rules under Response checkpoints.
 
 ### 2. Run the triage gate
 
@@ -110,51 +112,27 @@ Technical or UI confirmation is not customer confirmation. Check **Verified by c
 
 Do not write closure fields or move the ticket unless explicitly requested.
 
-### 8. Rate the AI resolution after the user closes
-
-When the user confirms Mark as Solved and the **Rate AI Resolution** wizard opens (or they ask for the AI rate), provide copy-ready stars, tags, and note. Follow [AI-RATING.md](AI-RATING.md).
-
-This step scores the **in-Odoo investigator suggestion** against the human-final resolution. It is the Salam AI HITL feedback loop: reviews pin `ai.agent.version` so prompt/config quality can be measured over time. It is not a grade of the Cursor dig.
-
-- Compare AI **proposed** resolution (wizard diff or pre-confirm AI-filled fields) to the **final** Mark as Solved values.
-- Choose 1–5 stars (5→ok, 3–4→needs_improvement, 1–2→failed), tags (Useful, Good Dig, Wrong Resolution, Hallucination, Incomplete), and a short note tied to the proposed→final gap.
-- Do not wait for the user to ask once the wizard is in play; include the paste-ready block in that response.
-- Tell the user to **Skip** only when Mark as Solved had no AI-suggested resolution.
-- Do not submit the review via MCP/shell unless explicitly asked; the user clicks Submit or Skip.
-
 ## Response checkpoints
 
-0. **Chat title:** one-line rename suggestion (first response after the ticket is identified)
 1. **Investigation:** evidence, freshness, classification, and root cause
 2. **Plan:** smallest safe resolution and risks, awaiting approval when mutation is needed
 3. **Execution guidance:** available UI and shell paths
 4. **Verification + closure:** fresh MCP confirmation followed immediately by copy-ready Mark as Solved values when closure-ready
 5. **Pending deployment:** exact remaining gate and draft closure values if useful
-6. **AI rating:** after the user Mark as Solved with an AI-suggested resolution (wizard open), copy-ready stars, tags, and note per [AI-RATING.md](AI-RATING.md)
 
-### Chat title
+## AI resolution rating
 
-Cursor chats cannot be renamed by the agent. Always suggest one paste-ready title early; the user renames manually.
-
-Output exactly one line in this form:
+At the end of every ticket resolution (after closure values), provide a short **AI Rating** block comparing the ticket's original AI-generated contribution (if any existed on the ticket, e.g. auto-classification, suggested reply, or AI notes) against the AI-suggested resolution produced during this session.
 
 ```text
-Chat title: <short distinctive title> (#<ticket_id>)
+AI Rating
+─────────
+Original AI contribution : <what the ticket's AI fields contained, or "None">
+AI suggested resolution  : <one-line summary of this session's resolution>
+Accuracy delta           : <Better / Same / Worse — did the original AI help, miss, or mislead?>
+Notes                    : <brief explanation of the gap, e.g. "Original auto-classification was correct but resolution suggestion missed the stale record">
 ```
 
-Rules:
-
-- One line only; no alternatives, no explanation, no “please rename” prompt
-- Include the ticket id in `(#…)`
-- Prefer the symptom or subject, not the workflow stage (“In Progress”, “Routed”)
-- Keep it short enough for the chat sidebar (about 6–12 words before the id)
-- Redact secrets and unnecessary personal data; do not invent details not on the ticket
-- Suggest once when the ticket is first identified; do not repeat on later checkpoints unless the user asks
-
-Example:
-
-```text
-Chat title: AI intake_steps append (#415800)
-```
+If the ticket had no prior AI contribution, state "None" and skip the accuracy delta.
 
 See [EXAMPLES.md](EXAMPLES.md) for branch examples derived from real ticket patterns.

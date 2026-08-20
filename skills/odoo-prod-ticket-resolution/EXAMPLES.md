@@ -2,12 +2,6 @@
 
 These examples illustrate decisions, not fixed record names or commands.
 
-Every branch still starts with a one-line chat title suggestion after the ticket is identified, for example:
-
-```text
-Chat title: AI intake_steps append (#415800)
-```
-
 ## Missing generated records after manual reassignment
 
 Evidence:
@@ -123,21 +117,18 @@ Path:
 5. Keep existing records unchanged when the approved scope is code-only.
 6. Treat staging or a scheduled deployment as pending; close **Fixed / Bug** only after production verification.
 
-## AI suggested Referred; human completed the audit as Fixed
+## Rate AI Resolution after Mark as Solved
 
 Evidence:
 
-- Ticket asks for a one-off identification/report across sales orders and quotations.
-- AI prefilled resolution as **Referred** / custom report, category Other.
-- Human (with MCP dig) delivered the matching records and closed **Fixed** / Other.
-- Rate AI Resolution wizard opens after Mark as Solved.
+- Ticket had `odoo_support_resolution_ai_suggested` set; Mark as Solved opened **Rate AI Resolution**.
+- MCP shows AI proposed Fixed/Access; human confirmed Referred/Access with an HR prerequisite the AI missed.
+- No existing `ai.feedback.review` for this ticket.
 
 Path:
 
-1. Deliver the identification list; close Fixed / Other with copy-ready Mark as Solved values.
-2. After the user confirms Mark as Solved, rate the **Odoo AI suggestion**, not the Cursor dig.
-3. Stars **3**, tags **Useful**, **Incomplete**, **Wrong Resolution**.
-4. Note: AI classified non-bug audit correctly but wrong outcome and missing deliverable pairs.
-5. User submits the wizard; review pins `ai.agent.version` automatically.
-
-See [AI-RATING.md](AI-RATING.md).
+1. MCP-search `ai.feedback.review` for the ticket and active `ai.feedback.tag` names.
+2. Diff proposed vs final (`outcome`, `category`, `summary`, `root_cause`, …).
+3. Suggest copy-ready wizard values (e.g. 3 stars, Good Dig + Incomplete, note naming the gap).
+4. Do not create the review via MCP; the human submits or Skips the popup.
+5. If a review already exists, summarize it instead of proposing a duplicate.

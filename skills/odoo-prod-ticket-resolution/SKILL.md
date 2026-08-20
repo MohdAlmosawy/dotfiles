@@ -1,6 +1,6 @@
 ---
 name: odoo-prod-ticket-resolution
-description: Investigates and resolves Odoo production helpdesk tickets from an ID or URL, including duplicates, stale reports, data corrections, configuration, and code defects. Uses MCP and the codebase, gates mutations by approval, tracks code through production verification, and automatically returns Mark as Solved values when closure-ready. Use only when explicitly requested for production ticket investigation or resolution.
+description: Investigates and resolves Odoo production helpdesk tickets from an ID or URL, including duplicates, stale reports, data corrections, configuration, and code defects. Uses MCP and the codebase, gates mutations by approval, tracks code through production verification, and automatically returns Mark as Solved plus Rate AI Resolution wizard values when closure-ready. Use only when explicitly requested for production ticket investigation or resolution.
 disable-model-invocation: true
 ---
 
@@ -21,7 +21,9 @@ Resolve production tickets through evidence, triage, approval, safe execution, i
 
 ### 0. Suggest a title
 
-After identifying the ticket, immediately suggest a short descriptive title (max 8 words) for this investigation session based on the ticket subject, affected model, and symptom. Present it at the top of the first response so the user can rename the chat.
+After identifying the ticket, immediately suggest a short descriptive title (max 8 words) for this investigation session based on the ticket subject, affected model, and symptom. Append the ticket number at the end as `#<nnnnnn>` using `ticket_ref` (fall back to numeric `id` if `ticket_ref` is empty). Present it at the top of the first response so the user can rename the chat.
+
+Example: `Driver portal payment mismatch #397829`
 
 ### 1. Identify and read the ticket
 
@@ -34,6 +36,8 @@ Discover MCP schemas before calling tools. Read:
 - Chatter, tracking values, activities, and attachments
 - Escalations and every linked requirement, task, duplicate, parent/child ticket, sale order, payment, picking, or other business record
 - Existing resolution and previous solve/reopen history
+- AI investigator state when present: `investigation_state`, `investigation_notes`, `proposed_solution`, `odoo_support_resolution_ai_suggested`, linked `support.ai.investigation` / `ai.response.log` rows
+- Existing `ai.feedback.review` rows for this ticket (`res_model='helpdesk.ticket'`, `res_id=<ticket_id>`) including `rating`, `tag_ids`, `note`, `proposed_json`, `final_json`, and `diff_summary`
 
 Use model metadata and relationship inspection instead of assuming custom field names. Read escalation records themselves even when a displayed escalation count is zero; routing logs and technical escalations may use different counters.
 
@@ -112,27 +116,33 @@ Technical or UI confirmation is not customer confirmation. Check **Verified by c
 
 Do not write closure fields or move the ticket unless explicitly requested.
 
+When the ticket had AI-suggested resolution (`odoo_support_resolution_ai_suggested`), also prepare copy-ready **Rate AI Resolution** values (stars, tags, note). Follow [AI-RATING.md](AI-RATING.md).
+
 ## Response checkpoints
 
 1. **Investigation:** evidence, freshness, classification, and root cause
 2. **Plan:** smallest safe resolution and risks, awaiting approval when mutation is needed
 3. **Execution guidance:** available UI and shell paths
 4. **Verification + closure:** fresh MCP confirmation followed immediately by copy-ready Mark as Solved values when closure-ready
-5. **Pending deployment:** exact remaining gate and draft closure values if useful
+5. **AI rating wizard:** copy-ready star rating, tags, and note when the ticket had AI-suggested resolution — see [AI-RATING.md](AI-RATING.md)
+6. **Pending deployment:** exact remaining gate and draft closure values if useful
 
-## AI resolution rating
+## AI feedback rating (Rate AI Resolution wizard)
 
-At the end of every ticket resolution (after closure values), provide a short **AI Rating** block comparing the ticket's original AI-generated contribution (if any existed on the ticket, e.g. auto-classification, suggested reply, or AI notes) against the AI-suggested resolution produced during this session.
+Odoo stores feedback on the ticket via **`ai.feedback.review`**, collected through **`ai.feedback.review.wizard`** titled **Rate AI Resolution**. This rates the **in-Odoo AI Investigator suggestion**, not this Cursor session.
+
+**Always MCP-read first:** existing `ai.feedback.review` for the ticket and active `ai.feedback.tag` rows. If a review already exists, summarize it; do not propose a duplicate unless asked.
+
+When closure is ready and the ticket had AI-suggested resolution, append copy-ready wizard values alongside Mark as Solved. The human submits them in the popup after confirm — do not write reviews via MCP/shell unless explicitly approved.
 
 ```text
-AI Rating
-─────────
-Original AI contribution : <what the ticket's AI fields contained, or "None">
-AI suggested resolution  : <one-line summary of this session's resolution>
-Accuracy delta           : <Better / Same / Worse — did the original AI help, miss, or mislead?>
-Notes                    : <brief explanation of the gap, e.g. "Original auto-classification was correct but resolution suggestion missed the stale record">
+Rate AI Resolution
+──────────────────
+Rating: <1–5 stars>
+Tags: <comma-separated tag names from ai.feedback.tag, or Empty>
+Note: <concise review of AI contribution vs human final resolution>
 ```
 
-If the ticket had no prior AI contribution, state "None" and skip the accuracy delta.
+Full field guide, star/status mapping, tag meanings, note rules, and examples: [AI-RATING.md](AI-RATING.md).
 
 See [EXAMPLES.md](EXAMPLES.md) for branch examples derived from real ticket patterns.

@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "notes": "Map each physical machine to its Anki profile and Obsidian vault. Collection content is synced via AnkiWeb; paths differ per device. Add new devices here — do not hardcode a single DEFAULT_DB in scripts.",
+  "devices": {
+    "alsalam-work": {
+      "label": "AlSalam work PC",
+      "status": "active",
+      "match": {
+        "hostnames": ["Ubuntu24"],
+        "os_hints": ["linux"]
+      },
+      "anki": {
+        "install": "snap",
+        "profile_dir": "~/snap/anki-desktop/common/User 1",
+        "collection_db": "~/snap/anki-desktop/common/User 1/collection.anki2"
+      },
+      "obsidian": {
+        "vault": "~/Desktop/obsidian/6 AI-Master UOB"
+      }
+    },
+    "personal-laptop": {
+      "label": "Personal laptop",
+      "status": "pending",
+      "match": {
+        "hostnames": [],
+        "os_hints": []
+      },
+      "anki": {
+        "install": "unknown",
+        "profile_dir": null,
+        "collection_db": null
+      },
+      "obsidian": {
+        "vault": null
+      },
+      "todo": "On first setup: set hostnames, Anki profile_dir/collection_db (Linux ~/.local/share/Anki2/<Profile>, Flatpak, Windows %APPDATA%\\\\Anki2\\\\<Profile>, or macOS ~/Library/Application Support/Anki2/<Profile>), and Obsidian vault path. Confirm AnkiWeb sync before writing."
+    }
+  }
+}

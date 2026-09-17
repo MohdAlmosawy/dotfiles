@@ -1,0 +1,7 @@
+{
+  "devices": {
+    "personal-laptop": {
+      "comment": "Copy fields you need, then rename this file to devices.local.json on that machine if you prefer not to edit devices.json. Example only — safe to delete."
+    }
+  }
+}

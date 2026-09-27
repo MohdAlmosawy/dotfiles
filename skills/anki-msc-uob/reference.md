@@ -87,7 +87,7 @@ Deck `kind` protobuf: `KindContainer.normal.config_id` = preset id. All `MCs*` d
 - `course::601` | `course::602` | `course::603`
 - `week::01` … zero-pad 2 digits
 - `lec::01` … lecture number within course
-- `phase::symbolic` | `phase::nlp` | (603 may use `phase::methods` later if needed)
+- `phase::symbolic` | `phase::nlp` | `phase::intro` (602 intro / foundations) | (603 may use `phase::methods` later if needed)
 
 ### Topics (601 — extend as syllabus progresses)
 
@@ -113,7 +113,16 @@ Planned syllabus-aligned:
 - `topic::rag-llms`
 - `topic::ai-ethics`
 
-Add 602/603 topics when those decks start (e.g. `topic::supervised`, `topic::research-design`).
+### Topics (602 — Introduction to ML)
+
+Current:
+
+- `topic::supervised`
+- `topic::unsupervised`
+- `topic::linear-regression`
+- `topic::regression-metrics`
+
+Add further 602 topics as the syllabus progresses. 603 later (e.g. `topic::research-design`).
 
 ### Types
 

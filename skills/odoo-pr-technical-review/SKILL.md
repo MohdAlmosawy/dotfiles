@@ -19,6 +19,31 @@ This stage is a **code review**. Functional testing and UAT are done in a previo
 
 The agent produces a **fixed report** (template below), then a **draft inline-comment pack** for GitHub. Do **not** post review comments to GitHub until the user explicitly approves which comments to publish.
 
+## Contract fence (hard)
+
+Applies always — including when launched from `odooer-day-ops` starter packs.
+Full fence (all layers, not only git):
+`~/.cursor/skills/odooer-day-ops/contracts.md`.
+
+Obey **all** of: repo **`AGENTS.md`** (KISS, minimal diff, multi-company,
+workflow isolation, scoped CSS, no unjustified `noupdate`, no secrets, menus /
+groups conventions, …), **`critical_overrides.md`** when overriding owned
+methods, user rules, and this skill.
+
+- **Default role = review only.** Verdict + draft GitHub comments. No ship.
+- **Permission:** Soft phrases are not approval. Explicit ask required for git
+  commit/push/merge, GitHub review posts / `gh pr edit`, and Odoo writes.
+  “Drop this from the PR” / “fix it” / “return to PR Ready” authorize only what
+  they name — not commit/push.
+- If the user asks for a code change after the verdict: edit → stop →
+  **`commit-comment`** (commands only). Tell day-ops `needs commit plan` when
+  this was an orchestrator handoff.
+- **Never** bump module `version` in `__manifest__.py`.
+- Prefer `git fetch` + `git show` / `gh` over checking out the PR branch onto
+  the shared `live` worktree.
+- When returning to day-ops: **Verdict line** (+ optional `needs commit plan` /
+  `needs Odoo write approval` / worktree note).
+
 ## When to run
 
 - User asks for technical review / PR review / merge readiness on this repo
@@ -239,7 +264,8 @@ When the user approves (all or a subset):
 3. Return the review URL
 4. If the API rejects a line anchor, fix the anchor or fall back to a PR-level comment for that item — do not silently drop blockers
 
-Never: commit, push, merge, or dismiss others’ reviews unless the user explicitly asks.
+Never: commit, push, merge, dismiss others’ reviews, or `gh pr edit` unless the
+user explicitly asks for that named action. See **Contract fence** above.
 
 ### Report add-on (after step 8, before asking)
 
@@ -264,7 +290,10 @@ If Blockers and Follow-ups are both None, the table may be `None` and the ask ca
 - Approving because the bot is green while claim↔code gaps remain
 - Treating sibling-module drive-bys as “part of the feature” without calling them out
 - Duplicating `AGENTS.md` into a long essay instead of gating findings
-- Committing, pushing, or merging unless the user explicitly asks
+- Committing, pushing, merging, or `gh pr edit` unless the user explicitly asks
+- Treating “drop X from the PR” / “return to PR Ready” as commit or push permission
+- Implementing post-review fixes and shipping them in the same turn without `commit-comment`
+- Checking out the PR branch onto the shared worktree when fetch/show would do
 - Inventing UAT pass/fail
 - **Holding the verdict or drafting comments because UAT/functional testing is missing** (prior stage)
 - Writing a Test plan / post-merge smoke checklist as the review deliverable
@@ -273,5 +302,6 @@ If Blockers and Follow-ups are both None, the table may be `None` and the ask ca
 
 ## Related skills
 
+- `odooer-day-ops` / `contracts.md` — orchestrator handoff + shared contract fence
 - `commit-comment` — commit plan after review-driven fixes (agent does not commit)
 - `dev-story-workflow` — handoff story implementation loop (not PR verdict)

@@ -309,7 +309,7 @@ It is fail-closed: if the GitHub post fails, the stage move rolls back. An empty
 - **Plain text.** Chatter escapes it: no markdown headers or tables, and backticks show literally. Short lines with `-` or `1.` work in both chatter and GitHub.
 - Do **not** start with `FYI : @coderabbitai`; the wizard adds it.
 - Do **not** paste the review report. Summarise and point to the GitHub review.
-- Keep it to roughly 5–10 lines, in this order:
+- Keep it to roughly 5 lines, in this order:
   1. One-line verdict + "details in the GitHub review; resolve everything, including CodeRabbit threads, in one pass".
   2. **Requirement context:** current scope, what changed vs the PR description/Discovery (date + source), what is out of scope.
   3. **Changes needed:** short numbered list grouped by area (blockers first, then follow-ups to include in the same pass).

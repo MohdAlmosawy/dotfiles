@@ -75,6 +75,7 @@ PR technical review:
 - [ ] 7 Deploy path (install vs upgrade, seeds in the diff)
 - [ ] 8 Fixed report
 - [ ] 9 Draft inline comments → ask user → post only if approved
+- [ ] 10 Suggest the Odoo "PR Needs Changes" note (Request changes only)
 ```
 
 ### 1. Business anchor
@@ -284,6 +285,51 @@ Reply with: post all / post #… / edit … / skip.
 
 If Blockers and Follow-ups are both None, the table may be `None` and the ask can be skip.
 
+## 10. Odoo "PR Needs Changes" note (suggest only)
+
+Run after the GitHub review is posted when the verdict is **Request changes** (or the user says the task goes back to the developer). Suggest the text; the **user** submits it.
+
+### What the wizard does (`salam_odoo_development`)
+
+On a dev handoff task in **Technical Review**, the **PR Needs Changes** button opens the "Changes Needed" wizard (plain-text note, optional). **Send to Ready**:
+
+1. Posts to task chatter: **"Technical review — changes needed"** + the note, notifying the task assignees.
+2. Moves the task to **Ready** (branch and PR are reused).
+3. Posts a top-level PR comment: `FYI : @coderabbitai` + blank line + the note. CodeRabbit is mentioned so it reads the note and replies.
+
+It is fail-closed: if the GitHub post fails, the stage move rolls back. An empty note posts only the chatter title and nothing to GitHub.
+
+### Purpose of the note
+
+- **Developer:** one overall summary of what must change, pointing to the review for line-level detail.
+- **CodeRabbit:** the **current** requirement. Scope often shifts after Discovery (chatter clarifications, testing feedback), and CodeRabbit otherwise judges against the stale PR description. State what changed, when, and the source.
+
+### Content rules
+
+- **Plain text.** Chatter escapes it: no markdown headers or tables, and backticks show literally. Short lines with `-` or `1.` work in both chatter and GitHub.
+- Do **not** start with `FYI : @coderabbitai`; the wizard adds it.
+- Do **not** paste the review report. Summarise and point to the GitHub review.
+- Keep it to roughly 5–10 lines, in this order:
+  1. One-line verdict + "details in the GitHub review; resolve everything, including CodeRabbit threads, in one pass".
+  2. **Requirement context:** current scope, what changed vs the PR description/Discovery (date + source), what is out of scope.
+  3. **Changes needed:** short numbered list grouped by area (blockers first, then follow-ups to include in the same pass).
+  4. **CodeRabbit:** fix its comments except the ones skipped (name them briefly; the reasons are on the threads). One line asking CodeRabbit to use the requirement context on its next review.
+  5. **Before PR Ready again:** PR description update, squash, config/deploy notes.
+
+### Report add-on (after the review is posted)
+
+````markdown
+## Suggested Odoo "PR Needs Changes" note
+Task → PR Needs Changes → paste into "Changes Needed" → Send to Ready.
+This posts to chatter, moves the task to Ready, and comments on the PR as "FYI : @coderabbitai".
+
+```text
+…note…
+```
+````
+
+Never submit the wizard yourself (Odoo write + stage move + PR comment) unless the user explicitly asks for that named action.
+
 ## Anti-patterns
 
 - Reviewing the tip commit only
@@ -299,6 +345,7 @@ If Blockers and Follow-ups are both None, the table may be `None` and the ask ca
 - Writing a Test plan / post-merge smoke checklist as the review deliverable
 - **Posting GitHub inline/review comments without explicit user approval of the draft pack**
 - Posting every CodeRabbit nit as an inline comment
+- Submitting the Needs Changes wizard yourself, prefixing the note with `FYI : @coderabbitai`, or pasting the full report / markdown tables into it
 
 ## Related skills
 

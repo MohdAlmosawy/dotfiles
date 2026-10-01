@@ -51,7 +51,7 @@ Week starts **Saturday**. Obsidian vault path comes from the **resolved device**
 
 1. Resolve device via `scripts/device.py` — refuse writes if `status=pending` or DB path missing.
 2. DB is `collection.anki2` under that device’s profile (schema v18; configs = protobuf).
-3. **Before any write:** backup under that profile’s `backups/`, ensure Anki is **not running**. Prefer graceful quit.
+3. **Before any write:** backup under that profile’s `backups/`, ensure Anki is **not running**. Prefer graceful quit. Check with `pgrep -af anki` (full command line): snap Anki runs as `python3 /snap/anki-desktop/…/bin/anki`, so `pgrep -a anki` misses it. Writing while Anki is open zeroed the collection once.
 4. Read-only inspect is fine while Anki is open (`mode=ro` / `immutable=1`).
 5. Register SQLite collation `unicase` or avoid `ORDER BY` on unicase columns.
 6. Do **not** dump full note backs unless asked; prefer scoped summaries.

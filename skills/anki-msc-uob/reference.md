@@ -97,10 +97,11 @@ Current:
 - `topic::agents`
 - `topic::symbolic-ai`
 - `topic::search-foundations`
+- `topic::and-or-search` — AND/OR graphs, conditional plans, AO* (deck `02) Adversarial Search`)
 
 Planned syllabus-aligned:
 
-- `topic::adversarial-search`
+- `topic::adversarial-search` — games, minimax, alpha–beta pruning
 - `topic::knowledge-rep`
 - `topic::fuzzy-logic`
 - `topic::text-preprocess`
@@ -153,6 +154,7 @@ Add further 602 topics as the syllabus progresses. 603 later (e.g. `topic::resea
 |---------|------|
 | AI taxonomy, agents, policy, symbolic vs non-symbolic | `601-NLP :: 00) Introduction` |
 | State space, node vs state, heuristics, A* | `601-NLP :: 01) Search Foundations` |
+| AND/OR graphs, AO*, games, minimax, alpha–beta | `601-NLP :: 02) Adversarial Search` |
 | Later syllabus blocks | matching `NN) Title` subdeck |
 
 ## Technical notes

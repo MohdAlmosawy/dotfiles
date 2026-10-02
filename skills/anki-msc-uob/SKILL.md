@@ -21,7 +21,7 @@ Anki **content** syncs via AnkiWeb. **Filesystem paths differ** per machine — 
 | Device id | Machine | Status |
 |-----------|---------|--------|
 | `alsalam-work` | AlSalam work PC (hostname `Ubuntu24`, snap Anki) | active |
-| `personal-laptop` | Personal laptop | pending — fill paths on first setup |
+| `personal-laptop` | Personal laptop (hostname `Mangroove-Predator-PHN16-71`, native Anki) | active |
 
 **Resolve order:** `--db` / `ANKI_MSC_DB` → `ANKI_MSC_DEVICE` → hostname match in `devices.json` → optional `devices.local.json` overrides.
 

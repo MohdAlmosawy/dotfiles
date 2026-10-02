@@ -22,20 +22,19 @@ python ~/.cursor/skills/anki-msc-uob/scripts/device.py --json
 | Obsidian vault | `~/Desktop/obsidian/6 AI-Master UOB` |
 | Semester courses | `…/01 MSc UOB/Semester 1 - 2026/` |
 
-### Pending: `personal-laptop`
+### Active: `personal-laptop`
 
-Fill on first setup in `devices.json`:
+| What | Path |
+|------|------|
+| Hostname match | `Mangroove-Predator-PHN16-71` |
+| Anki install | native (`/usr/local/bin/anki`, 24.06.3) |
+| Profile | `~/.local/share/Anki2/Sayed Mohamed` |
+| Collection | `~/.local/share/Anki2/Sayed Mohamed/collection.anki2` |
+| Media / backups | `…/collection.media` · `…/backups/` |
+| Obsidian vault | `~/Desktop/obsidian/6 AI-Master UOB` |
+| Semester courses | `…/01 MSc UOB/Semester 1 - 2026/` |
 
-1. `match.hostnames` — run `hostname` on that machine  
-2. `anki.install` — `native` / `flatpak` / `snap` / `windows` / `macos`  
-3. `anki.profile_dir` + `anki.collection_db` — typical locations:
-   - Linux native: `~/.local/share/Anki2/<Profile>/collection.anki2`
-   - Flatpak: `~/.var/app/net.ankiweb.Anki/data/Anki2/<Profile>/`
-   - Windows: `%APPDATA%\Anki2\<Profile>\`
-   - macOS: `~/Library/Application Support/Anki2/<Profile>/`
-4. `obsidian.vault`  
-5. Set `status` → `active`  
-6. Sync AnkiWeb once **before** any agent writes  
+AnkiWeb login is configured (`autoSync` on). Confirmed last sync 2026-10-02 02:53 before this device was marked active.
 
 Optional per-machine overrides (not required): `devices.local.json` next to `devices.json` (same shape under `devices`). Env overrides: `ANKI_MSC_DEVICE`, `ANKI_MSC_DB`.
 
@@ -155,6 +154,7 @@ Add further 602 topics as the syllabus progresses. 603 later (e.g. `topic::resea
 | AI taxonomy, agents, policy, symbolic vs non-symbolic | `601-NLP :: 00) Introduction` |
 | State space, node vs state, heuristics, A* | `601-NLP :: 01) Search Foundations` |
 | AND/OR graphs, AO*, games, minimax, alpha–beta | `601-NLP :: 02) Adversarial Search` |
+| 602 lecture 1: what ML is, supervised vs unsupervised, linear regression, MSE / RMSE / R² | `602-ML :: 00) Introduction & Linear Regression` |
 | Later syllabus blocks | matching `NN) Title` subdeck |
 
 ## Technical notes

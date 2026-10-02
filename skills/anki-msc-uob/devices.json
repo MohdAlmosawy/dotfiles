@@ -20,20 +20,19 @@
     },
     "personal-laptop": {
       "label": "Personal laptop",
-      "status": "pending",
+      "status": "active",
       "match": {
-        "hostnames": [],
-        "os_hints": []
+        "hostnames": ["Mangroove-Predator-PHN16-71"],
+        "os_hints": ["linux"]
       },
       "anki": {
-        "install": "unknown",
-        "profile_dir": null,
-        "collection_db": null
+        "install": "native",
+        "profile_dir": "~/.local/share/Anki2/Sayed Mohamed",
+        "collection_db": "~/.local/share/Anki2/Sayed Mohamed/collection.anki2"
       },
       "obsidian": {
-        "vault": null
-      },
-      "todo": "On first setup: set hostnames, Anki profile_dir/collection_db (Linux ~/.local/share/Anki2/<Profile>, Flatpak, Windows %APPDATA%\\\\Anki2\\\\<Profile>, or macOS ~/Library/Application Support/Anki2/<Profile>), and Obsidian vault path. Confirm AnkiWeb sync before writing."
+        "vault": "~/Desktop/obsidian/6 AI-Master UOB"
+      }
     }
   }
 }

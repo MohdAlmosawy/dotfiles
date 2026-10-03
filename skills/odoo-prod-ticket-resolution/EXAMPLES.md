@@ -117,6 +117,21 @@ Path:
 5. Keep existing records unchanged when the approved scope is code-only.
 6. Treat staging or a scheduled deployment as pending; close **Fixed / Bug** only after production verification.
 
+## Note on the changed record tagging the ticket
+
+Evidence:
+
+- A verified write changed a business or master-data record other than the ticket.
+- A later reader of that record needs to know why, and which ticket authorized it.
+
+Path:
+
+1. After MCP verification, ask whether to post an internal note on that record tagging this ticket. Show the record and the one-sentence body.
+2. Wait for an explicit yes. Do not post from the original fix approval.
+3. Post `mail.mt_note` with a structured `$` mention (`data-oe-model="helpdesk.ticket"`, `data-oe-id` = the ticket id). Label is `ticket_ref — subject`, subject cut at 39 characters plus `…` when longer than 40.
+4. Re-read the source note and the OdooBot “Referenced on …” note on the ticket.
+5. Continue closure separately. The note does not close the ticket.
+
 ## Rate AI Resolution after Mark as Solved
 
 Evidence:

@@ -1,6 +1,6 @@
 ---
 name: odoo-prod-ticket-resolution
-description: Investigates and resolves Odoo production helpdesk tickets from an ID or URL, including duplicates, stale reports, data corrections, configuration, and code defects. Uses MCP and the codebase, gates mutations by approval, tracks code through production verification, and automatically returns Mark as Solved plus Rate AI Resolution wizard values when closure-ready. Use only when explicitly requested for production ticket investigation or resolution.
+description: Investigates and resolves Odoo production helpdesk tickets from an ID or URL, including duplicates, stale reports, data corrections, configuration, and code defects. Uses MCP and the codebase, gates mutations by approval, tracks code through production verification, and automatically returns Mark as Solved plus Rate AI Resolution wizard values when closure-ready. After a verified record change, asks before posting an internal note that tags the ticket with a $ mention. Use only when explicitly requested for production ticket investigation or resolution.
 disable-model-invocation: true
 ---
 
@@ -16,6 +16,7 @@ Resolve production tickets through evidence, triage, approval, safe execution, i
 - Never remove records without proving they are stale and explaining accounting and audit effects.
 - Do not mark **Verified by customer** based on technical or UI verification.
 - Redact secrets and unnecessary personal or customer data.
+- Do not post a chatter note on a business record unless the user confirms that note. A request to fix the record is not approval to mention the ticket there.
 
 ## Workflow
 
@@ -104,7 +105,30 @@ After the user shares shell output or UI confirmation:
 
 Do not perform adjacent cleanup without new approval.
 
-### 7. Prepare closure
+### 7. Ask before tagging the ticket on the changed record
+
+After a production write to a record other than the ticket is verified, ask whether to leave an internal note on that record tagging this ticket. Ask once per record. Skip the ask when this session did not change a record.
+
+Show the record and the exact sentence. Wait for an explicit yes. Edit the sentence if the user rewrites it. Decline, silence, or “fix the record” is not approval to post.
+
+```text
+Post an internal note on <record> tagging this ticket?
+
+<one sentence: what changed and why>
+$<ticket_ref> — <truncated subject>
+```
+
+Post only after yes, as an internal note (`mail.mt_note`) on the `mail.thread` record the user opens. When the changed fields live on a related template, post on that template.
+
+The `$` mention must be the structured link from `salam_odoo_support_resolution`, not plain text. Plain `$436287` does not tag the ticket. The body link needs `data-oe-model="helpdesk.ticket"` and `data-oe-id="<ticket id>"`. Label text matches the composer: `ticket_ref`, then ` — `, then the subject. If the subject is longer than 40 characters, keep the first 39 and add `…`.
+
+```html
+<a href="/web#model=helpdesk.ticket&amp;id=TICKET_ID" class="o_mail_ticket_mention" data-oe-id="TICKET_ID" data-oe-model="helpdesk.ticket" target="_blank"><i class="fa fa-ticket"></i> $LABEL</a>
+```
+
+That link makes `mail.thread` post an OdooBot note on the ticket: “Referenced on &lt;source record&gt;.” It runs only for Odoo Support tickets (`team_is_odoo_support`). Preview the chatter post, then confirm. Re-read the source note and the reverse ticket note through MCP.
+
+### 8. Prepare closure
 
 Inspect the installed Mark as Solved wizard, model, view, and templates because required fields and visibility may be customized.
 
@@ -123,9 +147,10 @@ When the ticket had AI-suggested resolution (`odoo_support_resolution_ai_suggest
 1. **Investigation:** evidence, freshness, classification, and root cause
 2. **Plan:** smallest safe resolution and risks, awaiting approval when mutation is needed
 3. **Execution guidance:** available UI and shell paths
-4. **Verification + closure:** fresh MCP confirmation followed immediately by copy-ready Mark as Solved values when closure-ready
-5. **AI rating wizard:** copy-ready star rating, tags, and note when the ticket had AI-suggested resolution — see [AI-RATING.md](AI-RATING.md)
-6. **Pending deployment:** exact remaining gate and draft closure values if useful
+4. **Verification:** fresh MCP confirmation. When closure-ready, include copy-ready Mark as Solved values in the same response
+5. **Ticket tag on the record:** in that same response, after a verified write, ask before posting the internal `$` mention. Post only after yes, then confirm both notes through MCP
+6. **AI rating wizard:** copy-ready star rating, tags, and note when the ticket had AI-suggested resolution — see [AI-RATING.md](AI-RATING.md)
+7. **Pending deployment:** exact remaining gate and draft closure values if useful
 
 ## AI feedback rating (Rate AI Resolution wizard)
 

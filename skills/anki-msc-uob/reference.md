@@ -121,6 +121,7 @@ Current:
 - `topic::unsupervised`
 - `topic::linear-regression`
 - `topic::regression-metrics`
+- `topic::logistic-regression`
 
 Add further 602 topics as the syllabus progresses. 603 later (e.g. `topic::research-design`).
 
@@ -155,6 +156,7 @@ Add further 602 topics as the syllabus progresses. 603 later (e.g. `topic::resea
 | State space, node vs state, heuristics, A* | `601-NLP :: 01) Search Foundations` |
 | AND/OR graphs, AO*, games, minimax, alpha–beta | `601-NLP :: 02) Adversarial Search` |
 | 602 lecture 1: what ML is, supervised vs unsupervised, linear regression, MSE / RMSE / R² | `602-ML :: 00) Introduction & Linear Regression` |
+| 602 lecture 2: logistic regression, sigmoid, log-likelihood, gradient descent, precision / accuracy | `602-ML :: 01) Logistic Regression` |
 | Later syllabus blocks | matching `NN) Title` subdeck |
 
 ## Technical notes

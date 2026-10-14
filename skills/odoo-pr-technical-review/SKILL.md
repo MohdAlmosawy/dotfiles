@@ -155,6 +155,24 @@ Use exactly one:
 
 Do not use Request changes, Blocked, or follow-ups for missing UAT/functional testing.
 
+## Approval quip
+
+When the verdict is **Approve** or **Approve with follow-ups**, print **one** short line under the verdict, before the one-sentence why. Either use a line from the list below, or write a new one in the same voice: dry, short, slightly reckless about shipping. Do not attach a quip to **Request changes** or **Blocked**.
+
+Examples (reuse or riff):
+
+- Works on My Machine
+- May god be with this deployment.
+- Let's Get This Merged
+- Deploy and pray
+- LGTM, but if production goes down, I was never here.
+- It didn't explode
+- It compiled. That's enough for me.
+- Ship it!
+- LGTM : Let's Go To Lunch
+- IDKBLGTM
+- I see you also enjoy living dangerously.
+
 ## Fixed report format (mandatory)
 
 Emit the review **only** in this structure. Keep sections; use `None` or `N/A` when empty. Be concise.
@@ -164,6 +182,8 @@ Emit the review **only** in this structure. Keep sections; use `None` or `N/A` w
 
 ## Verdict
 [Approve | Approve with follow-ups | Request changes | Blocked]
+
+[Approval quip — only for Approve / Approve with follow-ups; omit otherwise]
 
 One sentence: why.
 

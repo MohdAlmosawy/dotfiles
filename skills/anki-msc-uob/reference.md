@@ -97,11 +97,10 @@ Current:
 - `topic::symbolic-ai`
 - `topic::search-foundations`
 - `topic::and-or-search` — AND/OR graphs, conditional plans, AO* (deck `02) Adversarial Search`)
+- `topic::adversarial-search` — games, minimax, alpha–beta pruning
+- `topic::knowledge-rep` — KBAs, propositional logic, entailment, forward/backward chaining (deck `03) Knowledge Representation`)
 
 Planned syllabus-aligned:
-
-- `topic::adversarial-search` — games, minimax, alpha–beta pruning
-- `topic::knowledge-rep`
 - `topic::fuzzy-logic`
 - `topic::text-preprocess`
 - `topic::statistical-nlp`

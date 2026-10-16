@@ -62,7 +62,7 @@ If a change spans modules, put each module's files in its own commit unless they
 2. git diff          (and git diff --cached if needed)
 3. git log -5 --oneline   (match existing style)
 4. Propose commit groups with file lists
-5. Output commands below — one block per commit, in run order
+5. Output commands below — one block per commit, in run order, then one combined block
 6. Wait for user to run each commit before proposing the next batch if they work incrementally
 ```
 
@@ -133,9 +133,20 @@ git commit -m "[IMP] salam_odoo_support: …"
 
 ### 2. …
 …
+
+## All at once
+
+\`\`\`bash
+git add path/a path/b
+git commit -m "[IMP] salam_odoo_support: …" &&
+git add path/c
+git commit -m "[IMP] salam_odoo_requirement: …"
+\`\`\`
 ```
 
-If only one commit remains, still use the same structure.
+After the numbered commits, add **All at once**: one bash block with every `git add` / `git commit` pair in the same order, joined with `&&` so a failed commit stops the rest. Same commands as the separate blocks. No extra `git status` inside that block.
+
+If only one commit remains, still use the numbered structure and omit **All at once**.
 
 ## Incremental mode
 
@@ -144,3 +155,4 @@ When the user says "next one" or pastes `git status` after a commit:
 - Acknowledge the last commit
 - Propose **only the next** commit in the plan
 - Do not re-list already-committed groups
+- Do not include **All at once**

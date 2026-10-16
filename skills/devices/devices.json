@@ -1,0 +1,54 @@
+{
+  "version": 2,
+  "notes": "Hosts are machines. The BOOX is a capture device and is not selected by hostname. Tool content syncs on its own; this file only records paths and connection status.",
+  "devices": {
+    "personal-laptop": {
+      "kind": "host",
+      "label": "Personal laptop",
+      "status": "active",
+      "match": {
+        "hostnames": ["Mangroove-Predator-PHN16-71"]
+      },
+      "anki": {
+        "install": "native",
+        "profile_dir": "~/.local/share/Anki2/Sayed Mohamed",
+        "collection_db": "~/.local/share/Anki2/Sayed Mohamed/collection.anki2"
+      },
+      "zotero": {
+        "data_dir": "~/Zotero",
+        "api": "http://127.0.0.1:23119"
+      },
+      "obsidian": {
+        "vault": "~/Desktop/obsidian/6 AI-Master UOB"
+      }
+    },
+    "alsalam-work": {
+      "kind": "host",
+      "label": "AlSalam work PC",
+      "status": "active",
+      "match": {
+        "hostnames": ["Ubuntu24"]
+      },
+      "anki": {
+        "install": "snap",
+        "profile_dir": "~/snap/anki-desktop/common/User 1",
+        "collection_db": "~/snap/anki-desktop/common/User 1/collection.anki2"
+      },
+      "zotero": {
+        "api": "http://127.0.0.1:23119"
+      },
+      "obsidian": {
+        "vault": "~/Desktop/obsidian/6 AI-Master UOB"
+      }
+    },
+    "boox": {
+      "kind": "capture",
+      "label": "BOOX",
+      "status": "not_connected",
+      "match": {
+        "hostnames": []
+      },
+      "notes": "Not connected. Do not invent a USB path. Files in the vault inbox are not proof the BOOX is online."
+    }
+  }
+}

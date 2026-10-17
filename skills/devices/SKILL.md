@@ -42,4 +42,3 @@ When adding a host, edit `devices.json` (hostname, Anki, Zotero, vault). Do not 
 - Sync AnkiWeb, import BOOX notes, or write the vault or the Zotero library.
 - Treat `00 Inbox` as proof the BOOX is online.
 - Invent a USB or sync path for the BOOX.
----

@@ -43,11 +43,24 @@ Deck `kind` protobuf: `KindContainer.normal.config_id` is the preset id. `MCs*` 
 
 ## Topics
 
-601 in use: `topic::ai-foundations`, `topic::agents`, `topic::symbolic-ai`, `topic::search-foundations`, `topic::and-or-search`.
+601 in use:
 
-601 later, as the syllabus reaches them: `topic::adversarial-search`, `topic::knowledge-rep`, `topic::fuzzy-logic`, `topic::text-preprocess`, `topic::statistical-nlp`, `topic::sequence-labeling`, `topic::embeddings`, `topic::transformers`, `topic::contextual-lms`, `topic::downstream-nlp`, `topic::rag-llms`, `topic::ai-ethics`.
+- `topic::ai-foundations`, `topic::agents`, `topic::symbolic-ai`, `topic::search-foundations`
+- `topic::and-or-search` — AND/OR graphs, conditional plans, AO*
+- `topic::adversarial-search` — games, minimax, alpha–beta pruning
+- `topic::knowledge-rep` — knowledge-based agents, propositional logic, entailment, forward/backward chaining
+- `topic::uncertainty` — probability, decision theory / MEU, Bayes
+- `topic::bayes-net` — Bayesian networks, conditional independence, enumeration, rejection sampling
+- `topic::hmm` — Markov assumption, HMM, filtering / smoothing
 
-602 in use: `topic::supervised`, `topic::unsupervised`, `topic::linear-regression`, `topic::regression-metrics`, `topic::logistic-regression`.
+601 later, as the syllabus reaches them: `topic::fuzzy-logic`, `topic::text-preprocess`, `topic::statistical-nlp`, `topic::sequence-labeling`, `topic::embeddings`, `topic::transformers`, `topic::contextual-lms`, `topic::downstream-nlp`, `topic::rag-llms`, `topic::ai-ethics`.
+
+602 in use:
+
+- `topic::supervised`, `topic::unsupervised`, `topic::linear-regression`, `topic::regression-metrics`
+- `topic::logistic-regression`
+- `topic::classification-metrics`, `topic::roc`, `topic::model-selection`
+- `topic::overview`, `topic::protocol`, `topic::max-margin`, `topic::lagrange`, `topic::kernel`, `topic::overfitting`, `topic::regularization`, `topic::complexity`
 
 603 later: `topic::research-design` and `phase::methods` if needed.
 
@@ -62,8 +75,12 @@ Types: `type::def`, `type::contrast`, `type::why`, `type::formula`, `type::algo`
 | AI taxonomy, agents, policy, symbolic vs non-symbolic | `601-NLP :: 00) Introduction` |
 | State space, node vs state, heuristics, A* | `601-NLP :: 01) Search Foundations` |
 | AND/OR graphs, AO*, games, minimax, alpha–beta | `601-NLP :: 02) Adversarial Search` |
-| What ML is, supervised vs unsupervised, linear regression, MSE / RMSE / R² | `602-ML :: 00) Introduction & Linear Regression` |
-| Logistic regression, sigmoid, log-likelihood, gradient descent, precision / accuracy | `602-ML :: 01) Logistic Regression` |
+| Knowledge-based agents, propositional logic, entailment, chaining | `601-NLP :: 03) Knowledge Representation` |
+| Probability, Bayesian networks, HMMs | `601-NLP :: 04) Quantifying Uncertainty` |
+| What ML is, supervised vs unsupervised, linear regression, MSE / RMSE / R² | `602-ML :: 01) Introduction & Linear Regression` |
+| Logistic regression, sigmoid, log-likelihood, gradient descent | `602-ML :: 02) Logistic Regression` |
+| Confusion matrix, precision, recall, F1, ROC, model selection | `602-ML :: 03) Logistics Evaluation Metrics` |
+| Max margin, Lagrangian, kernels, soft margin and regularization | `602-ML :: 04) Support Vector Machine` |
 | Later blocks | matching `NN) Title` subdeck |
 
 ## Searches

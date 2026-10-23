@@ -22,9 +22,9 @@ Folder map and the lecture pipeline: [reference.md](reference.md). The weekly ca
 
 ## Rules
 
-- `00 Inbox` is the filing queue for captures. It is not proof the BOOX is online. File inbox notes into a lecture note or a knowledge-base note, then they should not linger.
-- Lecturer files stay in `Course Material/`. The student's write-up is `Lectures/L01 - ….md`.
-- A paper's source of record is the Zotero item. Create `03 Papers/Reading Notes` only when the user is reading that paper, and store the Zotero item key on the note. Do not create a stub for every library item.
+- `00-Inbox` is the filing queue for captures. It is not proof the BOOX is online. File inbox notes into a lecture note or a knowledge-base note, then they should not linger.
+- Lecturer files stay in `Course-Material/`. The student's write-up is `Lectures/L01 - ….md`.
+- A paper's source of record is the Zotero item. Create `03-Papers/Reading-Notes` only when the user is reading that paper, and store the Zotero item key on the note. Do not create a stub for every library item.
 - Knowledge-base notes and teaching scripts are later exits. Do not create them from a paper unless the user asks.
 - Do not create or edit Zotero items. Hand that to the `zotero` skill.
 - Do not open `collection.anki2`. Hand cards to the `anki` skill.
@@ -32,4 +32,4 @@ Folder map and the lecture pipeline: [reference.md](reference.md). The weekly ca
 
 ## Teaching
 
-`05 Teaching & YouTube` is an optional exit: Ideas, then Scripts, then Published. A concept marked worth teaching can land in Ideas. This is not a separate tool.
+`05-Teaching-and-YouTube` is an optional exit: Ideas, then Scripts, then Published. A concept marked worth teaching can land in Ideas. This is not a separate tool.

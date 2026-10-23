@@ -36,13 +36,13 @@ Deadline dates in the vault index are unconfirmed unless a brief prints them.
 
 ## Where work goes
 
-**Lecture.** Course Material, then BOOX annotation, then a lecture note, then a knowledge-base note once the idea is settled, then Anki cards. The `obsidian` skill files the notes. The `anki` skill makes the cards.
+**Lecture.** `Course-Material/`, then BOOX annotation, then a lecture note, then a knowledge-base note once the idea is settled, then Anki cards. The `obsidian` skill files the notes. The `anki` skill makes the cards.
 
-**Paper.** Zotero item first (`zotero`). A reading note in `03 Papers/Reading Notes` only when the user is reading it, with the Zotero item key (`obsidian`). Knowledge-base notes and Anki cards only if the user asks.
+**Paper.** Zotero item first (`zotero`). A reading note in `03-Papers/Reading-Notes` only when the user is reading it, with the Zotero item key (`obsidian`). Knowledge-base notes and Anki cards only if the user asks.
 
-**Thesis and experiments.** `04 Projects & Research/` in the vault. Papers that support them still enter through Zotero.
+**Thesis and experiments.** `04-Projects-and-Research/` in the vault. Papers that support them still enter through Zotero.
 
-**Teaching.** Optional exit into `05 Teaching & YouTube` (Ideas, then Scripts, then Published). Not its own tool. A card flag `flag::teach` or a Thursday "worth teaching" mark can start an idea note.
+**Teaching.** Optional exit into `05-Teaching-and-YouTube` (Ideas, then Scripts, then Published). Not its own tool. A card flag `flag::teach` or a Thursday "worth teaching" mark can start an idea note.
 
 ## How to hand off
 

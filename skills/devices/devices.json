@@ -20,6 +20,12 @@
       },
       "obsidian": {
         "vault": "~/Desktop/obsidian/6-AI-Master-UOB"
+      },
+      "latex": {
+        "editor": "texstudio",
+        "commands": ["lualatex", "biber", "latexmk"],
+        "fonts": "90-Resources/UOB-LaTeX/fonts",
+        "notes": "TeXstudio is the editor. LuaLaTeX and Biber come from the TeX install under it. LaTeX Workshop is not assumed."
       }
     },
     "alsalam-work": {
@@ -39,6 +45,13 @@
       },
       "obsidian": {
         "vault": "~/Desktop/obsidian/6-AI-Master-UOB"
+      },
+      "latex": {
+        "editor": "cursor",
+        "extension": "james-yu.latex-workshop",
+        "commands": ["lualatex", "biber", "latexmk"],
+        "fonts": "90-Resources/UOB-LaTeX/fonts",
+        "notes": "Ubuntu apt: texlive-luatex, texlive-latex-recommended, texlive-latex-extra, texlive-fonts-recommended, texlive-bibtex-extra, texlive-lang-english, biber, latexmk. Build with the LaTeX Workshop recipe latexmk (lualatex). Times New Roman is the vault copy, not the system mscorefonts package."
       }
     },
     "boox": {

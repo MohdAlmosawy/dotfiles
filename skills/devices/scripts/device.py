@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Resolve the MSc host and report whether Anki, Zotero, the vault, and the BOOX are reachable."""
+"""Resolve the MSc host and report whether Anki, Zotero, the vault, LaTeX, and the BOOX are reachable."""
 
 from __future__ import annotations
 
 import json
 import os
 import platform
+import shutil
 import socket
 import urllib.error
 import urllib.request
@@ -31,7 +32,7 @@ def load_registry() -> dict[str, Any]:
         for did, cfg in (local.get("devices") or {}).items():
             if did in devices and isinstance(devices[did], dict) and isinstance(cfg, dict):
                 merged = {**devices[did], **cfg}
-                for key in ("anki", "zotero", "obsidian", "match"):
+                for key in ("anki", "zotero", "obsidian", "latex", "match"):
                     if key in devices[did] or key in cfg:
                         merged[key] = {
                             **(devices[did].get(key) or {}),
@@ -119,6 +120,67 @@ def zotero_api(api_base: str) -> dict[str, Any]:
     return {"reachable": False, "detail": f"HTTP {code}", "api": api_base}
 
 
+FONT_FILES = ("Times.TTF", "Timesbd.TTF", "Timesbi.TTF", "Timesi.TTF")
+LATEX_COMMANDS = ("lualatex", "biber", "latexmk")
+
+
+def _extension_installed(extension_id: str) -> bool:
+    home = Path.home()
+    roots = (
+        home / ".cursor" / "extensions",
+        home / ".cursor-server" / "extensions",
+        home / ".vscode" / "extensions",
+        home / ".vscode-server" / "extensions",
+    )
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for child in root.iterdir():
+            if child.name == extension_id or child.name.startswith(extension_id + "-"):
+                return True
+    return False
+
+
+def latex_status(cfg: dict[str, Any], vault: Path | None) -> dict[str, Any]:
+    """Report the UOB LaTeX toolchain on this host. A miss does not fail host ok."""
+    commands = list(cfg.get("commands") or LATEX_COMMANDS)
+    found = {name: shutil.which(name) for name in commands}
+    font_rel = cfg.get("fonts") or "90-Resources/UOB-LaTeX/fonts"
+    font_dir = vault / font_rel if vault else None
+    missing_fonts = []
+    if font_dir is None or not font_dir.is_dir():
+        missing_fonts = list(FONT_FILES)
+    else:
+        missing_fonts = [name for name in FONT_FILES if not (font_dir / name).is_file()]
+
+    extension_id = cfg.get("extension")
+    editor = cfg.get("editor")
+    commands_ok = all(found.values())
+    fonts_ok = not missing_fonts
+    detail_parts: list[str] = []
+    if not commands_ok:
+        detail_parts.append("missing " + ", ".join(name for name, path in found.items() if not path))
+    if not fonts_ok:
+        detail_parts.append("vault fonts missing" if font_dir is None or not font_dir.is_dir() else "missing " + ", ".join(missing_fonts))
+
+    report: dict[str, Any] = {
+        "reachable": commands_ok and fonts_ok,
+        "editor": editor,
+        "commands": {name: bool(path) for name, path in found.items()},
+        "fonts": str(font_dir) if font_dir else None,
+        "fonts_ok": fonts_ok,
+        "cursor_latex_workshop": _extension_installed("james-yu.latex-workshop"),
+    }
+    if editor == "texstudio":
+        report["texstudio"] = bool(shutil.which("texstudio"))
+    if extension_id:
+        report["extension"] = extension_id
+        report["extension_installed"] = _extension_installed(extension_id)
+    if detail_parts:
+        report["detail"] = "; ".join(detail_parts)
+    return report
+
+
 def capture_devices(reg: dict[str, Any]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for did, cfg in (reg.get("devices") or {}).items():
@@ -177,6 +239,7 @@ def resolve(device_id: str | None = None) -> dict[str, Any]:
     anki = cfg.get("anki") or {}
     zotero = cfg.get("zotero") or {}
     obsidian = cfg.get("obsidian") or {}
+    latex = cfg.get("latex") or {}
     collection = env_db_path or expand(anki.get("collection_db"))
     profile = expand(anki.get("profile_dir"))
     vault = expand(obsidian.get("vault"))
@@ -227,6 +290,7 @@ def resolve(device_id: str | None = None) -> dict[str, Any]:
         "anki": anki_tool,
         "zotero": zotero_tool,
         "obsidian": obsidian_tool,
+        "latex": latex_status(latex, vault),
         "captures": capture_devices(reg),
         "problems": problems,
         "profile_dir": profile,
@@ -287,6 +351,16 @@ def main() -> None:
     print(f"zotero:   reachable={zotero.get('reachable')} {zotero.get('detail', '')}")
     print(f"          data_dir={zotero.get('data_dir')}")
     print(f"obsidian: reachable={obsidian.get('reachable')} {obsidian.get('vault')}")
+    latex = info.get("latex") or {}
+    commands = latex.get("commands") or {}
+    command_text = " ".join(f"{name}={found}" for name, found in commands.items())
+    print(f"latex:    reachable={latex.get('reachable')} editor={latex.get('editor')} {command_text}")
+    print(f"          fonts_ok={latex.get('fonts_ok')} {latex.get('fonts')}")
+    print(f"          cursor_latex_workshop={latex.get('cursor_latex_workshop')}")
+    if "extension_installed" in latex:
+        print(f"          extension={latex.get('extension')} installed={latex.get('extension_installed')}")
+    if latex.get("detail"):
+        print(f"          {latex['detail']}")
     for cap in info.get("captures") or []:
         print(f"capture:  {cap.get('device_id')} reachable={cap.get('reachable')} status={cap.get('status')}")
     if info.get("problems"):

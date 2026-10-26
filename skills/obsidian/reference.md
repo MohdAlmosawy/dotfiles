@@ -2,6 +2,8 @@
 
 Vault: `6-AI-Master-UOB`, path from the `devices` skill.
 
+Folder names use hyphens and contain no spaces. `&` is written `and`. LuaTeX drops a font file whose path contains a space, so a new folder in this vault follows the same rule.
+
 ## Top level
 
 | Folder | What belongs here |
@@ -38,3 +40,9 @@ Knowledge base subjects: `Artificial-Intelligence`, `NLP`, `Machine-Learning`, `
 Create under `03-Papers/Reading-Notes/` when the user is actually reading. Include the Zotero item key. Do not copy the PDF into the vault when Zotero already stores it.
 
 Dashboard for the semester: `Index.md` at the vault root. Deadline dates in that file are unconfirmed unless a brief prints them.
+
+## LaTeX
+
+Shared template: `90-Resources/UOB-LaTeX/template.tex`. Times New Roman is the four files in `90-Resources/UOB-LaTeX/fonts/` (`Times.TTF`, `Timesbd.TTF`, `Timesbi.TTF`, `Timesi.TTF`). Point `fontspec` at that folder. Do not use a system font path, and do not put a second copy of the font elsewhere in the vault.
+
+Build with LuaLaTeX, then Biber, then LuaLaTeX again. On the AlSalam PC, Cursor's LaTeX Workshop recipe is `latexmk (lualatex)`. The plain latexmk recipe uses pdfLaTeX, which cannot load this template. The laptop editor is TeXstudio. The `devices` skill checks the commands, the vault fonts, and the Cursor extension on the current host.
